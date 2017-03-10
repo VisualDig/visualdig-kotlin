@@ -1,0 +1,63 @@
+group 'io.virtualdig'
+version '0.1-SNAPSHOT'
+
+buildscript {
+    ext.kotlin_version = '1.1.0'
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+apply plugin: 'kotlin'
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+ext {
+    springBootVersion = '1.5.2.RELEASE'
+    jacksonVersion = '2.8.7'
+
+    mockitoKotlinVersion = '1.3.0'
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile "org.springframework.boot:spring-boot-starter-websocket:$springBootVersion"
+    compile "com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion"
+    compile "org.jetbrains.kotlin:kotlin-reflect:$kotlin_version"
+
+    testCompile "org.springframework.boot:spring-boot-starter-test:$springBootVersion"
+    testCompile 'org.assertj:assertj-core:3.3.0'
+    testCompile 'io.damo.aspen:aspen-spring:2.0.0'
+    testCompile "com.nhaarman:mockito-kotlin:${mockitoKotlinVersion}"
+}
+
+sourceSets {
+    test {
+        kotlin.srcDir 'src/test'
+        java.srcDir 'src/test'
+        resources.srcDir 'src/test/resources'
+    }
+    main {
+        kotlin.srcDir 'src/main'
+        java.srcDir 'src/main'
+        resources.srcDir 'src/main/resources'
+    }
+}
+
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.3'
+}
+
+task copyFrontEnd(dependsOn: ":elm-app:build", type: Copy) {
+    from project(':elm-app').buildDir
+    into "build/resources/main/public/"
+}
+
+build.dependsOn('copyFrontEnd')

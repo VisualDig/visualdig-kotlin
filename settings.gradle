@@ -1,0 +1,5 @@
+rootProject.name = "virtualdig"
+
+include "elm-app"
+include "feature-test"
+include "dig"

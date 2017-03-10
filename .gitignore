@@ -1,0 +1,8 @@
+.gradle
+.idea
+gradle
+build
+**/.DS_Store
+**/elm-stuff
+**/node_modules
+elm-app/assets/elm.js

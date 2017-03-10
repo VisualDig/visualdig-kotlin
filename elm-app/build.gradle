@@ -1,0 +1,10 @@
+task clean(type: Exec) {
+    workingDir '.'
+
+    commandLine './clean_elm.sh'}
+
+task build(type: Exec, dependsOn: [clean] ) {
+    workingDir '.'
+
+    commandLine './build_elm.sh'
+}

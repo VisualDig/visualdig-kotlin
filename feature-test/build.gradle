@@ -1,0 +1,53 @@
+buildscript {
+    ext.kotlin_version = '1.1.0'
+    ext.springBootVersion = '1.5.2.RELEASE'
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+    }
+}
+
+apply plugin: 'kotlin'
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+ext {
+    springBootVersion = '1.5.2.RELEASE'
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile "org.springframework.boot:spring-boot-starter:$springBootVersion"
+    compile "org.springframework:spring-web:4.3.7.RELEASE"
+
+    compile project(':dig')
+    testCompile "org.springframework.boot:spring-boot-starter-test:$springBootVersion"
+    testCompile 'org.assertj:assertj-core:3.3.0'
+    testCompile 'io.damo.aspen:aspen-spring:2.0.0'
+}
+
+sourceSets {
+    test {
+        kotlin.srcDir 'src/test'
+        java.srcDir 'src/test'
+        resources.srcDir 'src/test/resources'
+    }
+    main {
+        kotlin.srcDir 'src/main'
+        java.srcDir 'src/main'
+        resources.srcDir 'src/main/resources'
+    }
+}
+
+task copyElmLib(dependsOn: ":elm-app:build", type: Copy) {
+    from project(':elm-app').buildDir
+    into "build/resources/main/public/"
+}
+
+test.dependsOn("copyElmLib")

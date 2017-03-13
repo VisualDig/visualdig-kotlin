@@ -18,8 +18,22 @@ type alias GoToAction =
     }
 
 
+type alias FindTextAction =
+    { action : ActionCommon
+    , text : String
+    }
+
+
 type ActionType
     = GoTo
+    | FindText
+
+
+findTextActionDecoder : Decoder FindTextAction
+findTextActionDecoder =
+    succeed FindTextAction
+        |: (field "action" actionDecoder)
+        |: (field "text" string)
 
 
 goToActionDecoder : Decoder GoToAction
@@ -48,6 +62,9 @@ actionType action =
     case action.action.actionType of
         "GoTo" ->
             Just GoTo
+
+        "FindText" ->
+            Just FindText
 
         _ ->
             Nothing

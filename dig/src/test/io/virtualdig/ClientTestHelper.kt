@@ -2,10 +2,7 @@ package io.virtualdig
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import jdk.internal.org.objectweb.asm.TypeReference
 import org.assertj.core.api.Assertions
-import org.springframework.messaging.MessageDeliveryException
-import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import javax.websocket.ClientEndpoint
@@ -17,14 +14,14 @@ import kotlin.properties.Delegates
 
 @ClientEndpoint
 class ClientTestHelper {
-    data class ClientActionResult(val message: String?, val errorText: String?)
+    data class ClientActionResult(val sentJson: String?, val sentinalErrorText: String?)
     companion object {
         fun assertMatchingMessage(result: ClientTestHelper.ClientActionResult) {
-            if (result.errorText != null) {
-                println(result.errorText)
-                Assertions.assertThat(result.message).overridingErrorMessage(result.errorText).isNotNull()
+            if (result.sentinalErrorText != null) {
+                println(result.sentinalErrorText)
+                Assertions.assertThat(result.sentJson).overridingErrorMessage(result.sentinalErrorText).isNotNull()
             } else {
-                Assertions.assertThat(result.message).isNotNull()
+                Assertions.assertThat(result.sentJson).isNotNull()
             }
         }
     }
@@ -34,8 +31,8 @@ class ClientTestHelper {
     var lastMessage: String by Delegates.observable("lastMessage") {
         _, _, new ->
             val result = expectedHandler.invoke(new)
-            if (result.message != null) {
-                sendMessage(result.message)
+            if (result.sentJson != null) {
+                sendMessage(result.sentJson)
             }
     }
 
@@ -57,11 +54,13 @@ class ClientTestHelper {
 
             val received: T = jacksonObjectMapper().readValue(message)
             if (received == expectedReceive) {
-                val clientActionResult = ClientActionResult(message = jacksonObjectMapper().writeValueAsString(send), errorText = null)
+                val clientActionResult = ClientActionResult(sentJson = jacksonObjectMapper().writeValueAsString(send),
+                                                            sentinalErrorText = null)
                 assertionBlock.invoke(clientActionResult)
                 clientActionResult
             } else {
-                val clientActionResult = ClientActionResult(message = null, errorText = "Expected object \n\n  $expectedReceive\n\nbut got this object instead \n\n  $received \n\n")
+                val clientActionResult = ClientActionResult(sentJson = null,
+                                                            sentinalErrorText = "Expected object \n\n  $expectedReceive\n\nbut got this object instead \n\n  $received \n\n")
                 assertionBlock.invoke(clientActionResult)
                 clientActionResult
             }

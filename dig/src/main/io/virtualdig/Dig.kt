@@ -1,5 +1,6 @@
 package io.virtualdig
 
+import io.virtualdig.element.DigTextQuery
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import java.net.URI
@@ -7,11 +8,11 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 class Dig(
+        val digHtmlTestFile: URI,
         val browserLauncher: BrowserLauncher = BrowserLauncher(System.getenv(), CommandRunner(), OperatingSystem())
 ) {
     private val context: CompletableFuture<ConfigurableApplicationContext> = CompletableFuture()
     private val controller: CompletableFuture<DigController> = CompletableFuture()
-    private val elmUri: URI = URI("http://localhost:8650")
 
     init {
         start(arrayOf("--server.port=8650"))
@@ -21,8 +22,8 @@ class Dig(
         digController().goTo(uri)
     }
 
-    fun clickLink(withText: String, withId: String? = null) {
-        digController().clickLink(withText, withId)
+    fun findText(text: String) {
+        digController().find(DigTextQuery(text))
     }
 
     fun close() {
@@ -37,7 +38,7 @@ class Dig(
         val context: ConfigurableApplicationContext = SpringApplication.run(WebSocketConfig::class.java, *args)
         this.context.complete(context)
         this.controller.complete(context.getBean(DigController::class.java))
-        browserLauncher.launchBrowser(elmUri, false)
+        browserLauncher.launchBrowser(digHtmlTestFile, false)
     }
 
 }

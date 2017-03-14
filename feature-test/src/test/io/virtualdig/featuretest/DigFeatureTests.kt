@@ -3,7 +3,7 @@ package io.virtualdig.featuretest
 import io.damo.aspen.Test
 import io.virtualdig.Dig
 import io.virtualdig.exceptions.DigTextNotFoundException
-import org.assertj.core.api.Assertions
+import org.assertj.core.api.Assertions.assertThat
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import java.net.URI
@@ -31,10 +31,10 @@ class DigFeatureTests : Test({
         Thread.sleep(2000)
         dig?.goTo(URI("http://localhost:9292/testpage.html"))
         try {
-            dig?.findText("Galoog")
+            dig?.findText("galactic")
         } catch(e : DigTextNotFoundException){
-            Assertions.assertThat(e).hasMessageContaining("Could not find the text 'Galoog' when doing a find text query.")
-            Assertions.assertThat(e).hasMessageContaining("Did you possibly mean to search for 'Gloogorb'?")
+            assertThat(e).hasMessageContaining("Could not find the text 'galactic' when doing a find text query.")
+            assertThat(e).hasMessageContaining("Did you possibly mean to search for 'GALACTIC'?")
         }
     }
 })

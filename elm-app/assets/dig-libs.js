@@ -1,8 +1,10 @@
 (function() {
     var elm = Elm.Main.fullscreen()
 
+    window.dig = {}
+
     // courtesy of github.com/kigiri
-    var levenshteinDistance = function(a, b) {
+    window.dig.levenshteinDistance = function(a, b) {
                                 if (a.length === 0) return b.length
                                 if (b.length === 0) return a.length
                                 let tmp, i, j, prev, val, row
@@ -38,32 +40,37 @@
                                 return row[a.length]
                               }
 
-    var findTextSearch = function(text){
-                              var iframe = document.getElementById('siteUnderTest').contentDocument;
-                              var n, found=false, a=[], walk=iframe.createTreeWalker(iframe.body,NodeFilter.SHOW_TEXT,null,false);
-                              while(n=walk.nextNode()) {
-                                if(n.textContent.search(text) != -1) {
-                                    found = true
+    window.dig.findTextSearch = function(text){
+                            var iframe = document.getElementById('siteUnderTest').contentDocument;
+                            var n, textElement=null, a=[], walk=iframe.createTreeWalker(iframe.body,
+                                                                                 NodeFilter.SHOW_ELEMENT,
+                                                                                 null,
+                                                                                 false);
+                            while(n=walk.nextNode()) {
+                                if(n.outerText && n.outerText != "") {
+                                    if(n.outerText.search(text) != -1) {
+                                        textElement = n;
+                                    }
+                                    distance = dig.levenshteinDistance(text.toLowerCase(), n.outerText.toLowerCase());
+                                    a.push({term: n.outerText, distance: distance});
                                 }
-                                a.push(n.textContent);
-                              }
-                              return {
-                                      allStrings: a,
-                                      found: found
-                                      };
-                        };
+                            }
+
+                            return {
+                                  allStrings: a,
+                                  found: textElement
+                                  };
+                         };
 
     elm.ports.findText_search.subscribe(function(text) {
-        var searchResult = findTextSearch(text);
+        var searchResult = dig.findTextSearch(text);
         if(searchResult.found) {
             elm.ports.findText_searchResult.send({result: "Success",
                                              closestMatches: []})
         } else {
-            var sortedCloseMatches = searchResult.allStrings.sort(function (first, second) {
-                                                                                     return levenshteinDistance(text, first) - levenshteinDistance(text, second);
-                                                                                  });
+            searchResult.allStrings.sort(function(a,b) {return a.distance - b.distance;});
             elm.ports.findText_searchResult.send({result: "Failure",
-                                             closestMatches: sortedCloseMatches});
+                                             closestMatches: searchResult.allStrings.map(function(a) {return a.term})});
         }
     });
 })();

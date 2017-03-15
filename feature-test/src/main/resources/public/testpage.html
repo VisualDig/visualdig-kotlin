@@ -1,6 +1,12 @@
 <html>
 <head>
     <script>
+        var createDiv = function() {
+            var node = document.createElement('div');
+            node.appendChild(document.createTextNode('jolted!'));
+            document.getElementsByTagName('body')[0].appendChild(node);
+        };
+
         setTimeout(function() {
             var node = document.createElement('div');
             node.appendChild(document.createTextNode('Gloogorb'));
@@ -16,5 +22,8 @@
 <body>
     <h2>Test Page</h2>
     <img src="http://deelay.me/1000/http://deelay.me/img/1000ms.gif">
+    <div>
+        <input type="button" value="Jolt" onclick="createDiv()">
+    </div>
 </body>
 </html>

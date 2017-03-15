@@ -1,12 +1,6 @@
 port module Ports.FindText exposing (..)
 
-import Response exposing (ActionResult)
-
-
-type alias FindTextSearchResult =
-    { result : String
-    , closestMatches : List String
-    }
+import Response exposing (ActionResult, FindTextSearchResult)
 
 
 port findText_search : String -> Cmd msg

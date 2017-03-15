@@ -3,8 +3,11 @@ package io.virtualdig
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import io.virtualdig.actions.ClickAction
 import io.virtualdig.actions.GoToAction
+import io.virtualdig.element.DigElementQuery
 import io.virtualdig.element.DigTextQuery
+import io.virtualdig.exceptions.DigPreviousQueryFailedException
 import io.virtualdig.exceptions.DigTextNotFoundException
 import io.virtualdig.exceptions.DigWebsiteException
 import io.virtualdig.results.FindTextResult
@@ -99,7 +102,7 @@ class DigController : TextWebSocketHandler() {
         initialized = true
     }
 
-    fun find(digTextQuery: DigTextQuery) {
+    fun find(digTextQuery: DigTextQuery): FindTextResult {
         if(!initialized) {
             throw DigWebsiteException("Call Dig.goTo before calling any query or interaction methods.")
         }
@@ -114,8 +117,38 @@ class DigController : TextWebSocketHandler() {
 
         session.sendMessage(TextMessage(jacksonObjectMapper().writeValueAsString(digTextQuery.specificAction())))
 
-        val (result, closestText) = resultWaiter.get(5, TimeUnit.SECONDS)
+        val findTextResult = resultWaiter.get(30, TimeUnit.SECONDS)
 
-        if (result.isFailure()) throw DigTextNotFoundException(digTextQuery, closestText.first())
+        if (findTextResult.result.isFailure())
+            throw DigTextNotFoundException(digTextQuery, findTextResult.closestMatches.first())
+
+        return findTextResult
+    }
+
+    fun click(digId: Int, queryToFindElement: DigElementQuery) {
+        if(!initialized) {
+            throw DigWebsiteException("Call Dig.goTo before calling any queryUsed or interaction methods.")
+        }
+
+        val resultWaiter: CompletableFuture<TestResult> = CompletableFuture()
+        listenToNextMessage({ message ->
+            val result: TestResult = jacksonObjectMapper().readValue(message)
+            resultWaiter.complete(result)
+        })
+
+        val session: WebSocketSession = webSocketSession() ?: throw Exception("No session exists yet")
+
+        val action = ClickAction.createClickAction(digId, queryToFindElement)
+
+        session.sendMessage(TextMessage(jacksonObjectMapper().writeValueAsString(action)))
+
+        val result = resultWaiter.get(30, TimeUnit.SECONDS)
+
+        if (result.result.isFailure()) {
+            if(action.usedTextQuery != null) {
+                val text = action.usedTextQuery.text
+                throw DigPreviousQueryFailedException("Could not find previously found text '$text'.")
+            }
+        }
     }
 }

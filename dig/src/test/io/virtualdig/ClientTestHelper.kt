@@ -27,9 +27,15 @@ class ClientTestHelper {
     }
 
     private var futureSession: CompletableFuture<Session> = CompletableFuture()
-    var expectedHandler: (String) -> ClientActionResult = { ClientActionResult(null, "Action was never set up!") }
+    private var messageReceivedForHandler : Boolean = false
+    var expectedHandler: (String) -> ClientActionResult by Delegates.observable({a -> ClientActionResult(null, "Action was never set up!") }) {
+        _, _, new ->
+            messageReceivedForHandler = false
+    }
+
     var lastMessage: String by Delegates.observable("lastMessage") {
         _, _, new ->
+            messageReceivedForHandler = true
             val result = expectedHandler.invoke(new)
             if (result.sentJson != null) {
                 sendMessage(result.sentJson)
@@ -65,6 +71,12 @@ class ClientTestHelper {
                 clientActionResult
             }
         }
+    }
+
+    fun assertReceivedServerMessage() {
+        Assertions.assertThat(messageReceivedForHandler)
+                .overridingErrorMessage("Expected to receive a message from the Dig Websocket server but none ever arrived!")
+                .isTrue()
     }
 
     @OnOpen

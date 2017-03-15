@@ -1,6 +1,6 @@
 module Actions exposing (..)
 
-import Json.Decode exposing (Decoder, field, map, string, succeed)
+import Json.Decode exposing (Decoder, field, int, map, maybe, string, succeed)
 import Json.Decode.Extra exposing ((|:))
 
 
@@ -24,9 +24,31 @@ type alias FindTextAction =
     }
 
 
+type alias TextQuery =
+    { text : String }
+
+
+type alias ClickAction =
+    { action : ActionCommon
+    , digId : Int
+    , usedQueryType : String
+    , usedTextQuery : Maybe TextQuery
+    }
+
+
 type ActionType
     = GoTo
     | FindText
+    | Click
+
+
+clickActionDecoder : Decoder ClickAction
+clickActionDecoder =
+    succeed ClickAction
+        |: (field "action" actionDecoder)
+        |: (field "digId" int)
+        |: (field "usedQueryType" string)
+        |: (field "usedTextQuery" (maybe textQueryDecoder))
 
 
 findTextActionDecoder : Decoder FindTextAction
@@ -51,6 +73,12 @@ actionTypeDecoder =
         )
 
 
+textQueryDecoder : Decoder TextQuery
+textQueryDecoder =
+    succeed TextQuery
+        |: (field "text" string)
+
+
 actionDecoder : Decoder ActionCommon
 actionDecoder =
     succeed ActionCommon
@@ -65,6 +93,9 @@ actionType action =
 
         "FindText" ->
             Just FindText
+
+        "Click" ->
+            Just Click
 
         _ ->
             Nothing

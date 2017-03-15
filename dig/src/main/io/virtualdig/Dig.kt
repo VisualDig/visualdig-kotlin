@@ -1,6 +1,8 @@
 package io.virtualdig
 
 import io.virtualdig.element.DigTextQuery
+import io.virtualdig.element.DigWebElement
+import io.virtualdig.exceptions.DigFatalException
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import java.net.URI
@@ -22,8 +24,13 @@ class Dig(
         digController().goTo(uri)
     }
 
-    fun findText(text: String) {
-        digController().find(DigTextQuery(text))
+    fun findText(text: String): DigWebElement {
+        val result = digController().find(DigTextQuery(text))
+
+        if(result.digId == null)
+            throw DigFatalException("DigTextNotFoundException was not thrown, and execution continued when it should not have.")
+
+        return DigWebElement(result.digId, DigTextQuery(text), digController())
     }
 
     fun close() {

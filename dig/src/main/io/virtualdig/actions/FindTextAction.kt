@@ -1,4 +1,11 @@
 package io.virtualdig.actions
 
-data class FindTextAction(override val action: TestAction = TestAction("FindText"),
-                          val text: String) : TestActionInterface
+
+data class FindTextAction(val text: String) : TestActionInterface {
+    override val action: TestAction = TestAction(FindTextAction.actionType())
+
+    companion object {
+        fun actionType() = "FindText"
+    }
+}
+

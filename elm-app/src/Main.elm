@@ -4,13 +4,14 @@
 
 module Main exposing (..)
 
-import Actions exposing (ActionCommon, ActionType(FindText, GoTo), FindTextAction, GoToAction, actionTypeDecoder, findTextActionDecoder, goToActionDecoder)
-import Ports.FindText exposing (FindTextSearchResult, findText_search, findText_searchResult)
+import Actions exposing (ActionCommon, ActionType(Click, FindText, GoTo), ClickAction, FindTextAction, GoToAction, actionTypeDecoder, clickActionDecoder, findTextActionDecoder, goToActionDecoder)
+import Ports.Click exposing (click_searchResult, click_searchText)
+import Ports.FindText exposing (findText_search, findText_searchResult)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Json
-import Response exposing (ActionResult, actionResult, basicSuccessResult, encodeFindTextResult, encodeJsonResult)
+import Response exposing (ActionResult, FindTextSearchResult, TestResultJS, actionResult, basicSuccessResult, encodeFindTextResult, encodeJsonResult)
 import Time exposing (Time, inSeconds, millisecond, second)
 import WebSocket
 
@@ -42,6 +43,7 @@ type alias Model =
     { websiteUrl : String
     , currentAction : Maybe ActionType
     , findTextAction : Maybe FindTextAction
+    , clickAction : Maybe ClickAction
     , timeoutTime : Maybe Time
     , timeout : Bool
     }
@@ -53,6 +55,7 @@ clearCurrentAction existingModel =
         | websiteUrl = existingModel.websiteUrl
         , currentAction = Nothing
         , findTextAction = Nothing
+        , clickAction = Nothing
         , timeoutTime = Nothing
         , timeout = False
     }
@@ -63,6 +66,7 @@ init =
     ( { websiteUrl = ""
       , currentAction = Nothing
       , findTextAction = Nothing
+      , clickAction = Nothing
       , timeoutTime = Nothing
       , timeout = False
       }
@@ -79,6 +83,7 @@ type Msg
     | WebsiteLoaded
     | UpdateTick Time
     | FindTextUpdate FindTextSearchResult
+    | ClickSearchUpdate TestResultJS
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -112,6 +117,19 @@ update msg model =
                         Err msg ->
                             Debug.crash ("Error decoding Json FindTextAction object: " ++ msg)
 
+                Ok (Just Click) ->
+                    case (Json.decodeString clickActionDecoder str) of
+                        Ok action ->
+                            ( { model
+                                | currentAction = Just Click
+                                , clickAction = Just action
+                              }
+                            , Cmd.none
+                            )
+
+                        Err msg ->
+                            Debug.crash ("Error decoding Json ClickAction object: " ++ msg)
+
                 Ok Nothing ->
                     Debug.crash ("Did not match known action: " ++ str)
 
@@ -120,8 +138,15 @@ update msg model =
 
         FindTextUpdate search ->
             let
+                log =
+                    if search.result == "Success" then
+                        Debug.log "found element" search
+                    else
+                        search
+
                 response =
-                    { result = actionResult search.result
+                    { result = search.result
+                    , digId = search.digId
                     , closestMatches = search.closestMatches
                     }
 
@@ -130,6 +155,29 @@ update msg model =
                         ( clearCurrentAction model, WebSocket.send digServer (encodeFindTextResult response) )
                     else if search.result == "Failure" && model.timeout then
                         ( clearCurrentAction model, WebSocket.send digServer (encodeFindTextResult response) )
+                    else
+                        ( model, Cmd.none )
+            in
+                cmdModelPair
+
+        ClickSearchUpdate search ->
+            let
+                log =
+                    if search.result == "Success" then
+                        Debug.log "found element and clicked it" search
+                    else
+                        search
+
+                response =
+                    { result = actionResult search.result
+                    , message = search.message
+                    }
+
+                cmdModelPair =
+                    if search.result == "Success" then
+                        ( clearCurrentAction model, WebSocket.send digServer (encodeJsonResult response) )
+                    else if search.result == "Failure" && model.timeout then
+                        ( clearCurrentAction model, WebSocket.send digServer (encodeJsonResult response) )
                     else
                         ( model, Cmd.none )
             in
@@ -146,6 +194,42 @@ update msg model =
 
                                 Nothing ->
                                     Cmd.none
+
+                        newModel =
+                            case model.timeoutTime of
+                                Nothing ->
+                                    { model | timeoutTime = Just (time + timeoutInSeconds * second) }
+
+                                Just timeoutTime ->
+                                    if (time - timeoutTime) >= 0 then
+                                        { model | timeout = True }
+                                    else
+                                        model
+                    in
+                        ( newModel, cmd )
+
+                Just Click ->
+                    let
+                        cmd =
+                            case model.clickAction of
+                                Just action ->
+                                    case action.usedQueryType of
+                                        "TextQuery" ->
+                                            case action.usedTextQuery of
+                                                Just query ->
+                                                    click_searchText
+                                                        { digId = action.digId
+                                                        , textQuery = query.text
+                                                        }
+
+                                                Nothing ->
+                                                    Debug.crash "Unexpected: Text query object was null in Click action"
+
+                                        _ ->
+                                            Debug.crash ("Unexpected: Wrong query type found for Click action " ++ action.usedQueryType)
+
+                                Nothing ->
+                                    Debug.crash "Unexpected: action state was empty while processing Click action"
 
                         newModel =
                             case model.timeoutTime of
@@ -180,6 +264,7 @@ subscriptions model =
         [ WebSocket.listen digServer NewMessage
         , Time.every (250 * millisecond) UpdateTick
         , findText_searchResult FindTextUpdate
+        , click_searchResult ClickSearchUpdate
         ]
 
 

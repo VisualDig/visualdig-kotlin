@@ -1,4 +1,9 @@
 package io.virtualdig.actions
 
-data class FindSingleClassAction(override val action: TestAction = TestAction("FindSingleClass"),
-                                 val singleClass: String) : TestActionInterface
+data class FindSingleClassAction(val singleClass: String) : TestActionInterface {
+    override val action: TestAction = TestAction(FindSingleClassAction.actionType())
+
+    companion object {
+        fun actionType() = "FindSingleClass"
+    }
+}

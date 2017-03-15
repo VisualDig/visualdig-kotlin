@@ -6,9 +6,13 @@ import com.nhaarman.mockito_kotlin.verify
 import com.nhaarman.mockito_kotlin.whenever
 import io.damo.aspen.Test
 import io.virtualdig.ClientTestHelper.Companion.assertMatchingMessage
+import io.virtualdig.actions.ClickAction
 import io.virtualdig.actions.FindTextAction
 import io.virtualdig.actions.GoToAction
 import io.virtualdig.actions.TestAction
+import io.virtualdig.element.DigTextQuery
+import io.virtualdig.element.DigWebElement
+import io.virtualdig.exceptions.DigPreviousQueryFailedException
 import io.virtualdig.exceptions.DigTextNotFoundException
 import io.virtualdig.exceptions.DigWebsiteException
 import io.virtualdig.results.FindTextResult
@@ -21,7 +25,7 @@ import java.net.URI
 import javax.websocket.ContainerProvider
 import javax.websocket.Session
 import javax.websocket.WebSocketContainer
-
+import java.io.IOException
 
 class DigSocketTest : Test({
     var container: WebSocketContainer? = null
@@ -56,11 +60,13 @@ class DigSocketTest : Test({
             }
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
-                    expectedReceive = GoToAction(action = TestAction(actionType = "GoTo"), uri = "http://www.example.com/"),
+                    expectedReceive = GoToAction(uri = "http://www.example.com/"),
                     send = TestResult(result = Result.Success, message = ""),
                     assertionBlock = ::assertMatchingMessage)
 
             dig!!.goTo(URI("http://www.example.com/"))
+
+            clientTestHelper!!.assertReceivedServerMessage()
         }
 
         test("invalid URI") {
@@ -87,7 +93,7 @@ class DigSocketTest : Test({
             }
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
-                    expectedReceive = GoToAction(action = TestAction(actionType = "GoTo"), uri = "http://www.example.com/"),
+                    expectedReceive = GoToAction(uri = "http://www.example.com/"),
                     send = TestResult(result = Result.Failure, message = "Could not open website requested"),
                     assertionBlock = ::assertMatchingMessage,
                     delayInMs = 1000)
@@ -111,7 +117,7 @@ class DigSocketTest : Test({
             }
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
-                    expectedReceive = GoToAction(action = TestAction(actionType = "GoTo"), uri = "http://www.example.com/"),
+                    expectedReceive = GoToAction(uri = "http://www.example.com/"),
                     send = TestResult(result = Result.Success, message = ""),
                     assertionBlock = ::assertMatchingMessage)
 
@@ -119,10 +125,17 @@ class DigSocketTest : Test({
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = FindTextAction(text = "foo text"),
-                    send = FindTextResult(result = Result.Success, closestMatches = emptyList()),
+                    send = FindTextResult(result = Result.Success, digId = 12, closestMatches = emptyList()),
                     assertionBlock = ::assertMatchingMessage)
 
-            dig!!.findText("foo text")
+            val element = dig!!.findText("foo text")
+
+            assertThat(element.digId).isEqualTo(12)
+
+            val textQuery: DigTextQuery = element.queryUsed as DigTextQuery
+            assertThat(textQuery.text).isEqualTo("foo text")
+
+            clientTestHelper!!.assertReceivedServerMessage()
         }
 
         test("text does not exist on page") {
@@ -136,7 +149,7 @@ class DigSocketTest : Test({
             }
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
-                    expectedReceive = GoToAction(action = TestAction(actionType = "GoTo"), uri = "http://www.example.com/"),
+                    expectedReceive = GoToAction(uri = "http://www.example.com/"),
                     send = TestResult(result = Result.Success, message = ""),
                     assertionBlock = ::assertMatchingMessage)
 
@@ -144,15 +157,13 @@ class DigSocketTest : Test({
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = FindTextAction(text = "fo text"),
-                    send = FindTextResult(result = Result.Failure, closestMatches = listOf("foo text")),
+                    send = FindTextResult(result = Result.Failure, digId = null, closestMatches = listOf("foo text")),
                     assertionBlock = ::assertMatchingMessage)
 
-            try {
-                dig!!.findText("fo text")
-            } catch(e : DigTextNotFoundException){
-                assertThat(e).hasMessageContaining("Could not find the text 'fo text' when doing a find text query.")
-                assertThat(e).hasMessageContaining("Did you possibly mean to search for 'foo text'?")
-            }
+            assertThatExceptionOfType(DigTextNotFoundException::class.java)
+                    .isThrownBy { dig!!.findText("fo text") }
+                    .withMessageContaining("Could not find the text 'fo text' when doing a find text queryUsed.")
+                    .withMessageContaining("Did you possibly mean to search for 'foo text'?")
         }
 
         test("goTo hasn't been called yet") {
@@ -165,12 +176,84 @@ class DigSocketTest : Test({
                 // wait until socket is open
             }
 
-            try {
-                dig!!.findText("fo text")
-            } catch(e : DigWebsiteException){
-                assertThat(e).hasMessageContaining("Call Dig.goTo before calling any query or interaction methods.")
+            assertThatExceptionOfType(DigWebsiteException::class.java)
+                    .isThrownBy { dig!!.findText("fo text") }
+                    .withMessage("Call Dig.goTo before calling any queryUsed or interaction methods.")
+        }
+    }
+
+    describe("#click") {
+        test("click something found by text query") {
+
+            verify(browserLauncher!!).launchBrowser(URI("http://localhost:8650/dig-it.html"), false)
+
+            val session: Session = container!!.connectToServer(clientTestHelper!!, URI.create("ws://localhost:8650/dig"))
+            while (!session.isOpen) {
+                Thread.sleep(1)
+                // sometime it is doesn't work, but I dont know solution of this problem
+                // wait until socket is open
             }
+
+            clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
+                    expectedReceive = GoToAction(uri = "http://www.example.com/"),
+                    send = TestResult(result = Result.Success, message = ""),
+                    assertionBlock = ::assertMatchingMessage)
+
+            dig!!.goTo(URI("http://www.example.com/"))
+
+            clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
+                    expectedReceive = FindTextAction(text = "foo text"),
+                    send = FindTextResult(result = Result.Success, digId = 7, closestMatches = emptyList()),
+                    assertionBlock = ::assertMatchingMessage)
+
+            val element = dig!!.findText("foo text")
+
+            clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
+                    expectedReceive = ClickAction(digId = 7,
+                            usedQueryType = DigTextQuery.queryType(),
+                            usedTextQuery = DigTextQuery("foo text")),
+                    send = TestResult(result = Result.Success, message = ""),
+                    assertionBlock = ::assertMatchingMessage)
+
+            element.click()
+
+            clientTestHelper!!.assertReceivedServerMessage()
+        }
+
+        test("element no longer exists") {
+            verify(browserLauncher!!).launchBrowser(URI("http://localhost:8650/dig-it.html"), false)
+
+            val session: Session = container!!.connectToServer(clientTestHelper!!, URI.create("ws://localhost:8650/dig"))
+            while (!session.isOpen) {
+                Thread.sleep(1)
+                // sometime it is doesn't work, but I dont know solution of this problem
+                // wait until socket is open
+            }
+
+            clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
+                    expectedReceive = GoToAction(uri = "http://www.example.com/"),
+                    send = TestResult(result = Result.Success, message = ""),
+                    assertionBlock = ::assertMatchingMessage)
+
+            dig!!.goTo(URI("http://www.example.com/"))
+
+            clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
+                    expectedReceive = FindTextAction(text = "foo text"),
+                    send = FindTextResult(result = Result.Success, digId = 7, closestMatches = emptyList()),
+                    assertionBlock = ::assertMatchingMessage)
+
+            val element = dig!!.findText("foo text")
+
+            clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
+                    expectedReceive = ClickAction(digId = 7,
+                            usedQueryType = DigTextQuery.queryType(),
+                            usedTextQuery = DigTextQuery("foo text")),
+                    send = TestResult(result = Result.Failure, message = "Could not find previously found text 'foo text'"),
+                    assertionBlock = ::assertMatchingMessage)
+
+            assertThatExceptionOfType(DigPreviousQueryFailedException::class.java)
+                    .isThrownBy { element.click() }
+                    .withMessage("Could not find previously found text 'foo text'.")
         }
     }
 })
-/**/

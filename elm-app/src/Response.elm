@@ -1,14 +1,17 @@
 module Response
     exposing
         ( TestResult
+        , TestResultJS
         , ActionResult(..)
+        , FindTextSearchResult
         , actionResult
         , basicSuccessResult
         , encodeJsonResult
         , encodeFindTextResult
         )
 
-import Json.Encode exposing (Value, encode, list, object, string)
+import Json.Encode exposing (Value, encode, int, list, object, string)
+import Json.Encode.Extra exposing (maybe)
 
 
 type alias TestResult =
@@ -17,8 +20,15 @@ type alias TestResult =
     }
 
 
-type alias FindTextResult =
-    { result : ActionResult
+type alias TestResultJS =
+    { result : String
+    , message : String
+    }
+
+
+type alias FindTextSearchResult =
+    { result : String
+    , digId : Maybe Int
     , closestMatches : List String
     }
 
@@ -53,11 +63,12 @@ encodeJsonResult result =
         )
 
 
-encodeFindTextResult : FindTextResult -> String
+encodeFindTextResult : FindTextSearchResult -> String
 encodeFindTextResult result =
     encode 4
         (object
-            [ ( "result", string (toString result.result) )
+            [ ( "result", string result.result )
+            , ( "digId", maybe int result.digId )
             , ( "closestMatches", list (List.map (\a -> string a) result.closestMatches) )
             ]
         )

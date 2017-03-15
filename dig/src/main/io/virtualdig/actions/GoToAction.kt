@@ -1,4 +1,9 @@
 package io.virtualdig.actions
 
-data class GoToAction(override val action: TestAction = TestAction("GoTo"),
-                      val uri: String) : TestActionInterface
+data class GoToAction(val uri: String) : TestActionInterface {
+    override val action: TestAction = TestAction(GoToAction.actionType())
+
+    companion object {
+        fun actionType() = "GoTo"
+    }
+}

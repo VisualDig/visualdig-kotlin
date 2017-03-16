@@ -5,4 +5,5 @@ build
 **/.DS_Store
 **/elm-stuff
 **/node_modules
-elm-app/assets/elm.js
+elm-app/assets/dig-libs.js
+elm-app/js/elm.js   

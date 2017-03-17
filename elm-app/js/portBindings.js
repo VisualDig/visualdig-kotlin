@@ -1,39 +1,60 @@
-
-export function PortBindings(elm, pageQuerier) {
+export default function PortBindings(elm, pageQuerier) {
     this.elm = elm;
     this.nextDigId = 0;
     this.pageQuerier = pageQuerier;
 
     this.elmClickSearch =
-        function(clickAction) {
+        function (clickAction) {
             var node = this.pageQuerier.getElementByDigId(clickAction.digId);
-            if(node) {
+            if (node) {
                 this.pageQuerier.clickPageNode(node);
-                this.elm.ports.click_searchResult.send({result: "Success",
-                                                message: ""})
+                this.elm.ports.click_searchResult.send({
+                    result: "Success",
+                    message: ""
+                })
             } else {
-                console.log('Couldnt find it element to click on! ', clickAction);
                 // execute another search using text query from before
-                this.elm.ports.click_searchResult.send({result: "Failure", message: "Text element not visible yet"})
+                var searchResult = this.pageQuerier.findTextSearch(clickAction.textQuery);
+                if (searchResult.found) {
+                    this.pageQuerier.clickPageNode(searchResult.found);
+                    searchResult.found.dataset.digId = clickAction.digId;
+                    this.elm.ports.click_searchResult.send({
+                        result: "Success",
+                        message: ""
+                    })
+                } else {
+                    this.elm.ports.click_searchResult.send({
+                        result: "Failure",
+                        message: "Text element not visible yet"
+                    })
+                }
             }
-         };
+        };
 
 
     this.elmFindTextSearch =
-        function(text) {
+        function (text) {
             var searchResult = this.pageQuerier.findTextSearch(text);
-            if(searchResult.found) {
+            if (searchResult.found) {
                 var digId = this.nextDigId;
                 this.nextDigId += 1;
                 searchResult.found.dataset.digId = digId;
-                this.elm.ports.findText_searchResult.send({result: "Success",
-                                                      digId: digId,
-                                                      closestMatches: []})
+                this.elm.ports.findText_searchResult.send({
+                    result: "Success",
+                    digId: digId,
+                    closestMatches: []
+                })
             } else {
-                searchResult.allStrings.sort(function(a,b) {return a.distance - b.distance;});
-                this.elm.ports.findText_searchResult.send({result: "Failure",
-                                                      digId: null,
-                                                      closestMatches: searchResult.allStrings.map(function(a) {return a.term})});
+                searchResult.allStrings.sort(function (a, b) {
+                    return a.distance - b.distance;
+                });
+                this.elm.ports.findText_searchResult.send({
+                    result: "Failure",
+                    digId: null,
+                    closestMatches: searchResult.allStrings.map(function (a) {
+                        return a.term
+                    })
+                });
             }
         };
 

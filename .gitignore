@@ -6,4 +6,4 @@ build
 **/elm-stuff
 **/node_modules
 elm-app/assets/dig-libs.js
-elm-app/js/elm.js   
+elm-app/js/elm.js

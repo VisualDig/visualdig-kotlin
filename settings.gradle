@@ -1,4 +1,4 @@
-rootProject.name = "virtualdig"
+rootProject.name = "visualdig"
 
 include "elm-app"
 include "feature-test"

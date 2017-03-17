@@ -1,4 +1,4 @@
-group 'io.virtualdig'
+group 'io.visualdig'
 version '0.1-SNAPSHOT'
 
 task wrapper(type: Wrapper) {

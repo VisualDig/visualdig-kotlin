@@ -22,7 +22,6 @@ class DigFeatureTests : Test({
 
     test("happy path testing") {
         dig = Dig(digHtmlTestFile = URI("http://localhost:9292/dig-it.html"))
-        Thread.sleep(2000)
         dig?.goTo(URI("http://localhost:9292/testpage.html"))
 
         val element = dig!!.findText("Jolt")
@@ -33,7 +32,6 @@ class DigFeatureTests : Test({
 
     test("website loads and doesn't find text") {
         dig = Dig(digHtmlTestFile = URI("http://localhost:9292/dig-it.html"))
-        Thread.sleep(2000)
         dig?.goTo(URI("http://localhost:9292/testpage.html"))
 
         assertThatExceptionOfType(DigTextNotFoundException::class.java)

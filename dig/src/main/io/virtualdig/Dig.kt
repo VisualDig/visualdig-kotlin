@@ -46,6 +46,9 @@ class Dig(
         this.context.complete(context)
         this.controller.complete(context.getBean(DigController::class.java))
         browserLauncher.launchBrowser(digHtmlTestFile, false)
+        if (!SocketWaiter("localhost", 8650).wait(maxNumberOfRetries = 40)) {
+            throw DigFatalException("Failed to boot up the Dig websockets server after retrying many times.")
+        }
     }
 
 }

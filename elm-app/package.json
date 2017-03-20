@@ -16,6 +16,7 @@
     "karma-sourcemap-loader": "^0.3.7",
     "karma-webpack": "^2.0.3",
     "sinon": "^2.0.0",
+    "style-loader": "^0.14.1",
     "webpack": "^2.2.1"
   },
   "scripts": {

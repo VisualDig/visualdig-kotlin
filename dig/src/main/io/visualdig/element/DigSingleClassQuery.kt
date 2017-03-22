@@ -3,7 +3,7 @@ package io.visualdig.element
 import io.visualdig.actions.FindSingleClassAction
 import io.visualdig.actions.TestActionInterface
 
-data class DigSingleClassQuery(private val singleClass : String) : DigImplElementQuery<FindSingleClassAction>
+data class DigSingleClassQuery(private val singleClass : String) : DigGenesisElementQuery<FindSingleClassAction>
 {
     override fun action(): TestActionInterface {
         return specificAction()

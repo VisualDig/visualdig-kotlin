@@ -7,6 +7,12 @@ interface DigElementQuery {
     fun action() : TestActionInterface
 }
 
-interface DigImplElementQuery<T : TestActionInterface> : DigElementQuery {
+interface DigChainElementQuery<T : TestActionInterface> : DigElementQuery {
+    val digId : Int
+
+    fun specificAction(prevQueries : List<DigElementQuery>) : T
+}
+
+interface DigGenesisElementQuery<T : TestActionInterface> : DigElementQuery {
     fun specificAction() : T
 }

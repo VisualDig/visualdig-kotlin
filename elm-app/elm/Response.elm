@@ -1,14 +1,4 @@
-module Response
-    exposing
-        ( TestResult
-        , TestResultJS
-        , ActionResult(..)
-        , FindTextSearchResult
-        , actionResult
-        , basicSuccessResult
-        , encodeJsonResult
-        , encodeFindTextResult
-        )
+module Response exposing (..)
 
 import Json.Encode exposing (Value, encode, int, list, object, string)
 import Json.Encode.Extra exposing (maybe)
@@ -30,6 +20,22 @@ type alias FindTextSearchResult =
     { result : String
     , digId : Maybe Int
     , closestMatches : List String
+    }
+
+
+type alias SpacialSearchResult =
+    { result : String
+    , message : String
+    , digId : Maybe Int
+    , closeResults : List CloseSpacialResult
+    }
+
+
+type alias CloseSpacialResult =
+    { x : Int
+    , y : Int
+    , tolerance : Int
+    , htmlId : String
     }
 
 
@@ -72,3 +78,26 @@ encodeFindTextResult result =
             , ( "closestMatches", list (List.map (\a -> string a) result.closestMatches) )
             ]
         )
+
+
+encodeSpacialSearchResult : SpacialSearchResult -> String
+encodeSpacialSearchResult result =
+    encode 4
+        (object
+            [ ( "result", string result.result )
+            , ( "message", string result.message )
+            , ( "digId", maybe int result.digId )
+            , ( "closeResults", list (List.map encodeCloseSpacialSearchResult result.closeResults) )
+            ]
+        )
+
+
+encodeCloseSpacialSearchResult : CloseSpacialResult -> Value
+encodeCloseSpacialSearchResult result =
+    (object
+        [ ( "x", int result.x )
+        , ( "y", int result.y )
+        , ( "tolerance", int result.tolerance )
+        , ( "htmlId", string result.htmlId )
+        ]
+    )

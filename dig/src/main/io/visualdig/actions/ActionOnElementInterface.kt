@@ -1,9 +1,6 @@
 package io.visualdig.actions
 
-import io.visualdig.element.DigTextQuery
-
-interface ActionOnElementInterface : UsedQueryInterface {
+interface ActionOnElementInterface {
     val digId: Int
-    override val usedQueryType: String
-    override val usedTextQuery: DigTextQuery?
+    val prevQueries: List<ExecutedQuery>
 }

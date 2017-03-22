@@ -20,7 +20,7 @@ if [ ! -d "elm-stuff" ]
 then
   $NPM_BIN/elm-package install --yes
 
-  if [ $? -eq 0 ]
+  if [ $? -eq  0 ]
   then
     echo "Compiling and installing elm packages completed!"
   else
@@ -30,13 +30,35 @@ then
 fi
 
 
-$NPM_BIN/elm-make src/Main.elm --output js/elm.js --yes
+$NPM_BIN/elm-make elm/Main.elm --output js/elm.js --yes
 
 if [ $? -eq 0 ]
 then
   echo "Compiling elm front-end completed succesfully!"
 else
   echo "Failed to compile elm application" >&2
+  exit 3
+fi
+
+
+$NPM_BIN/elm-test --compiler $NPM_BIN/elm-make ./elm/Test/Main.elm
+
+if [ $? -eq 0 ]
+then
+  echo "Elm tests passed!"
+else
+  echo "Elm tests failed" >&2
+  exit 3
+fi
+
+
+$NPM_BIN/karma start --reporters dots
+
+if [ $? -eq 0 ]
+then
+  echo "Javascript tests succeeded!"
+else
+  echo "Javascript tests failed" >&2
   exit 3
 fi
 

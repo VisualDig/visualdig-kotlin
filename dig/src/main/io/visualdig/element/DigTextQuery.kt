@@ -3,7 +3,7 @@ package io.visualdig.element
 import io.visualdig.actions.FindTextAction
 import io.visualdig.actions.TestActionInterface
 
-data class DigTextQuery(val text : String) : DigImplElementQuery<FindTextAction>
+data class DigTextQuery(val text : String) : DigGenesisElementQuery<FindTextAction>
 {
     override fun action(): TestActionInterface {
         return specificAction()

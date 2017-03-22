@@ -1,11 +1,14 @@
 import PortBindings from '../portBindings.js';
 import PageQuerier from '../pageQuerier.js';
+import SearchService from '../searchService.js';
 
 describe("PortBindings", function () {
-    var portBindings, pageQuerierMock, elmMock;
+    var portBindings, searchServiceMock, pageQuerierMock, elmMock;
 
     beforeEach(function () {
         pageQuerierMock = sinon.createStubInstance(PageQuerier);
+        searchServiceMock = sinon.createStubInstance(SearchService);
+
         elmMock = {
             ports: {
                 findText_search: {
@@ -19,13 +22,20 @@ describe("PortBindings", function () {
                 },
                 click_searchResult: {
                     send: sinon.spy()
+                },
+                spacialSearch: {
+                    subscribe: sinon.spy()
+                },
+                spacialSearch_result: {
+                    send: sinon.spy()
                 }
             }
         };
 
-        portBindings = new PortBindings(elmMock, pageQuerierMock);
+        portBindings = new PortBindings(elmMock, pageQuerierMock, searchServiceMock);
         expect(elmMock.ports.findText_search.subscribe.calledOnce).toBe(true);
         expect(elmMock.ports.click_searchText.subscribe.calledOnce).toBe(true);
+        expect(elmMock.ports.spacialSearch.subscribe.calledOnce).toBe(true);
     });
 
     describe("#elmClickSearch", function () {
@@ -82,7 +92,6 @@ describe("PortBindings", function () {
             });
         });
 
-
         it("fail to find dig id or element", function () {
             var call = elmMock.ports.click_searchText.subscribe.getCall(0);
             pageQuerierMock.getElementByDigId.returns(null);
@@ -110,52 +119,203 @@ describe("PortBindings", function () {
 
     describe("#elmFindTextSearch", function () {
         it("happy path", function () {
-            var call = elmMock.ports.findText_search.subscribe.getCall(0);
             var mockResult = {
                 found: {
-                    dataset: {
-                        digId: -1
-                    }
-                }
+                    foo: "bar"
+                },
+                digId: 11,
+                closestMatches: []
             };
 
-            pageQuerierMock.findTextSearch.returns(mockResult);
+            searchServiceMock.textSearch.returns(mockResult);
+
 
             // Calls function as if we were elm
+            var call = elmMock.ports.findText_search.subscribe.getCall(0);
             call.args[0]("batman");
 
-            expect(mockResult.found.dataset.digId).not.toEqual(-1);
-            sinon.assert.calledWith(pageQuerierMock.findTextSearch, "batman");
+
+            sinon.assert.calledWith(searchServiceMock.textSearch, "batman", "batman");
             sinon.assert.calledWith(elmMock.ports.findText_searchResult.send, {
                 result: "Success",
-                digId: 0,
+                digId: 11,
                 closestMatches: []
             });
         });
 
         it("fails to find text on page", function () {
-            var call = elmMock.ports.findText_search.subscribe.getCall(0);
             var mockResult = {
                 found: null,
-                allStrings: [{
-                    term: "pretzel",
-                    distance: 10
-                }, {
-                    term: "Batman",
-                    distance: 0
-                }]
+                digId: null,
+                closestMatches: ["Batman", "pretzel"]
             };
 
-            pageQuerierMock.findTextSearch.returns(mockResult);
+            searchServiceMock.textSearch.returns(mockResult);
 
             // Calls function as if we were elm
+            var call = elmMock.ports.findText_search.subscribe.getCall(0);
             call.args[0]("batman");
 
-            sinon.assert.calledWith(pageQuerierMock.findTextSearch, "batman");
+            sinon.assert.calledWith(searchServiceMock.textSearch, "batman", "batman");
             sinon.assert.calledWith(elmMock.ports.findText_searchResult.send, {
                 result: "Failure",
                 digId: null,
-                closestMatches: ["Batman", "pretzel"]
+                closestMatches: mockResult.closestMatches
+            });
+        });
+    });
+
+    describe("#elmSpacialSearch", function () {
+        it("happy path", function () {
+            var mockNode = {
+                foo: "bar"
+            };
+
+            pageQuerierMock.getElementByDigId.returns(mockNode);
+
+            var mockResult = {
+                found: {
+                    fooest: "bars"
+                },
+                digId: 4,
+                closeResults: []
+            };
+
+            searchServiceMock.spacialSearchFromAnchor.returns(mockResult);
+
+            var spacialSearchData = {
+                direction: "East",
+                elementType: "Checkbox",
+                digId: 3,
+                prevQueries: [{
+                    queryType: "TextQuery",
+                    textQuery: {
+                        text: "foo bar"
+                    },
+                    spacialQuery: null
+                }]
+            };
+
+
+            // Calls function as if we were elm
+            var call = elmMock.ports.spacialSearch.subscribe.getCall(0);
+            call.args[0](spacialSearchData);
+
+
+            sinon.assert.calledWith(pageQuerierMock.getElementByDigId, 3);
+            sinon.assert.calledWith(searchServiceMock.spacialSearchFromAnchor, mockNode, spacialSearchData);
+            sinon.assert.calledWith(elmMock.ports.spacialSearch_result.send, {
+                result: "Success",
+                message: "",
+                digId: 4,
+                closeResults: []
+            });
+        });
+
+        it("fails to find checkbox to the east", function () {
+            var mockNode = {
+                foo: "bar"
+            };
+
+            pageQuerierMock.getElementByDigId.returns(mockNode);
+
+            var mockResult = {
+                found: null,
+                digId: null,
+                closeResults: [{
+                    x: 100,
+                    y: -30,
+                    tolerance: 20,
+                    htmlId: "really-good-id"
+                }]
+            };
+
+            searchServiceMock.spacialSearchFromAnchor.returns(mockResult);
+
+            var spacialSearchData = {
+                direction: "East",
+                elementType: "Checkbox",
+                digId: 3,
+                prevQueries: [{
+                    queryType: "TextQuery",
+                    textQuery: {
+                        text: "foo bar"
+                    },
+                    spacialQuery: null
+                }]
+            };
+
+
+            // Calls function as if we were elm
+            var call = elmMock.ports.spacialSearch.subscribe.getCall(0);
+            call.args[0](spacialSearchData);
+
+
+            sinon.assert.calledWith(pageQuerierMock.getElementByDigId, 3);
+            sinon.assert.calledWith(searchServiceMock.spacialSearchFromAnchor, mockNode, spacialSearchData);
+
+            var expectedResult = {
+                result: "Failure",
+                message: "",
+                digId: null,
+                closeResults: [{
+                    x: 100,
+                    y: -30,
+                    tolerance: 20,
+                    htmlId: "really-good-id"
+                }]
+            };
+            sinon.assert.calledWith(elmMock.ports.spacialSearch_result.send, expectedResult);
+        });
+
+        it("fails to find original element by id (redo text search)", function () {
+            pageQuerierMock.getElementByDigId.returns(null);
+
+            var mockTextSearchResult = {
+                found: {
+                    spin: "foos"
+                }
+            };
+
+            pageQuerierMock.findTextSearch.returns(mockTextSearchResult);
+
+            var mockResult = {
+                found: {
+                    foos: "ball"
+                },
+                digId: 6,
+                closeResults: []
+            };
+
+            searchServiceMock.spacialSearchFromAnchor.returns(mockResult);
+
+            var spacialSearchData = {
+                direction: "East",
+                elementType: "Checkbox",
+                digId: 3,
+                prevQueries: [{
+                    queryType: "TextQuery",
+                    textQuery: {
+                        text: "foo bar"
+                    },
+                    spacialQuery: null
+                }]
+            };
+
+
+            // Calls function as if we were elm
+            var call = elmMock.ports.spacialSearch.subscribe.getCall(0);
+            call.args[0](spacialSearchData);
+
+
+            sinon.assert.calledWith(pageQuerierMock.findTextSearch, "foo bar");
+            sinon.assert.calledWith(pageQuerierMock.getElementByDigId, 3);
+            sinon.assert.calledWith(searchServiceMock.spacialSearchFromAnchor, mockTextSearchResult.found, spacialSearchData);
+            sinon.assert.calledWith(elmMock.ports.spacialSearch_result.send, {
+                result: "Success",
+                message: "",
+                digId: 6,
+                closeResults: []
             });
         });
     });

@@ -3,17 +3,19 @@ package io.visualdig
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import io.visualdig.actions.ActionOnElementInterface
 import io.visualdig.actions.ClickAction
+import io.visualdig.actions.ExecutedQuery.Companion.createExecutedQuery
 import io.visualdig.actions.GoToAction
+import io.visualdig.actions.SpacialSearchAction
 import io.visualdig.element.DigElementQuery
+import io.visualdig.element.DigSpacialQuery
 import io.visualdig.element.DigTextQuery
-import io.visualdig.exceptions.DigPreviousQueryFailedException
-import io.visualdig.exceptions.DigTextNotFoundException
-import io.visualdig.exceptions.DigWebsiteException
-import io.visualdig.results.FindTextResult
-import io.visualdig.results.Result
-import io.visualdig.results.TestResult
-import io.visualdig.results.isFailure
+import io.visualdig.element.DigWebElement
+import io.visualdig.exceptions.*
+import io.visualdig.results.*
+import io.visualdig.spacial.Direction
+import io.visualdig.spacial.ElementType
 import org.springframework.beans.factory.config.BeanDefinition.SCOPE_SINGLETON
 import org.springframework.context.annotation.Scope
 import org.springframework.web.socket.TextMessage
@@ -25,6 +27,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import kotlin.properties.Delegates
+import kotlin.reflect.KClass
 
 @Scope(SCOPE_SINGLETON)
 class DigController : TextWebSocketHandler() {
@@ -41,6 +44,7 @@ class DigController : TextWebSocketHandler() {
             messageListeners.clear()
         }
     }
+
     fun listenToNextMessage(handler: (String) -> Unit) {
         synchronized(messageListeners) {
             messageListeners.add(handler)
@@ -75,79 +79,103 @@ class DigController : TextWebSocketHandler() {
         }
 
         this.message = message.payload
-        val payload = message.payload
-        println("RECEIVED MESSAGE $payload")
     }
 
     fun goTo(uri: URI) {
-        val resultWaiter: CompletableFuture<TestResult> = CompletableFuture()
-        listenToNextMessage({ message ->
-            val result: TestResult = jacksonObjectMapper().readValue(message)
-            resultWaiter.complete(result)
-        })
-
-        val session: WebSocketSession = webSocketSession() ?: throw Exception("No session exists yet")
-
         val url: URL = uri.toURL() ?: throw Exception("URI provided was invalid")
-
         val urlString = url.toExternalForm()
-
         val goToAction = GoToAction(uri = urlString)
-        session.sendMessage(TextMessage(jacksonObjectMapper().writeValueAsString(goToAction)))
 
-        val (result, testMessage) = resultWaiter.get(5, TimeUnit.SECONDS)
+        val validResult = sendAndReceive(TestResult::class, goToAction, this::objectMap)
 
-        if (result.isFailure()) throw DigWebsiteException("Browser failed to go to URL: $urlString\n\n$testMessage")
+        if (validResult.result.isFailure()) {
+            val message = validResult.message
+            throw DigWebsiteException("Browser failed to go to URL: $urlString\n\n$message")
+        }
 
         initialized = true
     }
 
     fun find(digTextQuery: DigTextQuery): FindTextResult {
-        if(!initialized) {
+        if (!initialized) {
             throw DigWebsiteException("Call Dig.goTo before calling any query or interaction methods.")
         }
 
-        val resultWaiter: CompletableFuture<FindTextResult> = CompletableFuture()
-        listenToNextMessage({ message ->
-            val result: FindTextResult = jacksonObjectMapper().readValue(message)
-            resultWaiter.complete(result)
-        })
+        val validResult = sendAndReceive(FindTextResult::class, digTextQuery.specificAction(), this::objectMap)
 
-        val session: WebSocketSession = webSocketSession() ?: throw Exception("No session exists yet")
+        if (validResult.result.isFailure())
+            throw DigTextNotFoundException(digTextQuery, validResult.closestMatches.first())
 
-        session.sendMessage(TextMessage(jacksonObjectMapper().writeValueAsString(digTextQuery.specificAction())))
-
-        val findTextResult = resultWaiter.get(30, TimeUnit.SECONDS)
-
-        if (findTextResult.result.isFailure())
-            throw DigTextNotFoundException(digTextQuery, findTextResult.closestMatches.first())
-
-        return findTextResult
+        return validResult
     }
 
-    fun click(digId: Int, queryToFindElement: DigElementQuery) {
-        if(!initialized) {
+    fun click(digId: Int, prevQueries: List<DigElementQuery>) {
+        if (!initialized) {
             throw DigWebsiteException("Call Dig.goTo before calling any queryUsed or interaction methods.")
         }
 
-        val resultWaiter: CompletableFuture<TestResult> = CompletableFuture()
+        val action = ClickAction.createClickAction(digId, prevQueries.map(::createExecutedQuery))
+
+        val validResult = sendAndReceive(TestResult::class, action, this::objectMap)
+
+        if (validResult.result.isFailure() && action.prevQueries.isNotEmpty()) {
+            throw DigPreviousQueryFailedException("Could not find previously found element, TODO more error message.")
+        }
+    }
+
+    fun search(action: SpacialSearchAction): SpacialSearchResult {
+        if (!initialized) {
+            throw DigWebsiteException("Call Dig.goTo before calling any action or interaction methods.")
+        }
+
+        val validResult : SpacialSearchResult = sendAndReceive(SpacialSearchResult::class, action, this::objectMap)
+
+        if (validResult.result.isFailure()) {
+            if (validResult.message.isNotEmpty()) {
+                throw DigPreviousQueryFailedException("Could not find previously found element, TODO more error message.")
+            } else {
+                throw DigSpacialException(action, validResult)
+            }
+        }
+
+        return validResult
+    }
+
+    private inline fun <reified R : Any> objectMap(text:String) : R {
+        return jacksonObjectMapper().readValue(text)
+    }
+
+    private fun <A, R : Any> sendAndReceive(resultType: KClass<R>, action: A, method: (String) -> R): R {
+        val resultWaiter: CompletableFuture<ResponseWrapper> = CompletableFuture()
         listenToNextMessage({ message ->
-            val result: TestResult = jacksonObjectMapper().readValue(message)
-            resultWaiter.complete(result)
+            try {
+                val obj: R = method(message)
+                resultWaiter.complete(ResponseWrapper.Success(obj))
+            } catch (e: Exception) {
+                println(e.message)
+                resultWaiter.complete(ResponseWrapper.BadMessage(message))
+            }
         })
 
         val session: WebSocketSession = webSocketSession() ?: throw Exception("No session exists yet")
 
-        val action = ClickAction.createClickAction(digId, queryToFindElement)
-
         session.sendMessage(TextMessage(jacksonObjectMapper().writeValueAsString(action)))
 
-        val result = resultWaiter.get(30, TimeUnit.SECONDS)
+        val testResult = resultWaiter.get(5, TimeUnit.SECONDS)
 
-        if (result.result.isFailure()) {
-            if(action.usedTextQuery != null) {
-                val text = action.usedTextQuery.text
-                throw DigPreviousQueryFailedException("Could not find previously found text '$text'.")
+        when (testResult) {
+            is ResponseWrapper.BadMessage -> {
+                val jsonMessage = testResult.jsonMessage
+                val className = resultType.simpleName
+                throw DigFatalException("""
+    Expected $className message but was unable to parse it.
+
+    JSON message received from elm:
+
+    $jsonMessage""")
+            }
+            is ResponseWrapper.Success<*> -> {
+                return testResult.result as R
             }
         }
     }

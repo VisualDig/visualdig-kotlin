@@ -4,14 +4,17 @@
 
 module Main exposing (..)
 
-import Actions exposing (ActionCommon, ActionType(Click, FindText, GoTo), ClickAction, FindTextAction, GoToAction, actionTypeDecoder, clickActionDecoder, findTextActionDecoder, goToActionDecoder)
+import Actions exposing (ActionType(Click, FindText, GoTo, SpacialSearch), ClickAction, FindTextAction, GoToAction, SpacialSearchAction, actionTypeDecoder, clickActionDecoder, findTextActionDecoder, goToActionDecoder, spacialSearchActionDecoder)
 import Ports.Click exposing (click_searchResult, click_searchText)
 import Ports.FindText exposing (findText_search, findText_searchResult)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Json.Decode as Json
-import Response exposing (ActionResult, FindTextSearchResult, TestResultJS, actionResult, basicSuccessResult, encodeFindTextResult, encodeJsonResult)
+import Ports.Model exposing (clickPortData, spacialSearchPortData)
+import Ports.SpacialSearch exposing (spacialSearch, spacialSearch_result)
+import Queries exposing (QueryType(Text))
+import Response exposing (ActionResult, FindTextSearchResult, SpacialSearchResult, TestResultJS, actionResult, basicSuccessResult, encodeFindTextResult, encodeJsonResult, encodeSpacialSearchResult)
 import Time exposing (Time, inSeconds, millisecond, second)
 import WebSocket
 
@@ -44,6 +47,7 @@ type alias Model =
     , currentAction : Maybe ActionType
     , findTextAction : Maybe FindTextAction
     , clickAction : Maybe ClickAction
+    , spacialSearchAction : Maybe SpacialSearchAction
     , timeoutTime : Maybe Time
     , timeout : Bool
     }
@@ -56,6 +60,7 @@ clearCurrentAction existingModel =
         , currentAction = Nothing
         , findTextAction = Nothing
         , clickAction = Nothing
+        , spacialSearchAction = Nothing
         , timeoutTime = Nothing
         , timeout = False
     }
@@ -67,6 +72,7 @@ init =
       , currentAction = Nothing
       , findTextAction = Nothing
       , clickAction = Nothing
+      , spacialSearchAction = Nothing
       , timeoutTime = Nothing
       , timeout = False
       }
@@ -84,6 +90,7 @@ type Msg
     | UpdateTick Time
     | FindTextUpdate FindTextSearchResult
     | ClickSearchUpdate TestResultJS
+    | SpacialSearchUpdate SpacialSearchResult
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -91,7 +98,7 @@ update msg model =
     case msg of
         NewMessage str ->
             case (Json.decodeString actionTypeDecoder str) of
-                Ok (Just GoTo) ->
+                Ok GoTo ->
                     case (Json.decodeString goToActionDecoder str) of
                         Ok action ->
                             ( { model
@@ -104,7 +111,7 @@ update msg model =
                         Err msg ->
                             Debug.crash ("Error decoding Json GoToAction object: " ++ msg)
 
-                Ok (Just FindText) ->
+                Ok FindText ->
                     case (Json.decodeString findTextActionDecoder str) of
                         Ok action ->
                             ( { model
@@ -117,7 +124,7 @@ update msg model =
                         Err msg ->
                             Debug.crash ("Error decoding Json FindTextAction object: " ++ msg)
 
-                Ok (Just Click) ->
+                Ok Click ->
                     case (Json.decodeString clickActionDecoder str) of
                         Ok action ->
                             ( { model
@@ -130,8 +137,18 @@ update msg model =
                         Err msg ->
                             Debug.crash ("Error decoding Json ClickAction object: " ++ msg)
 
-                Ok Nothing ->
-                    Debug.crash ("Did not match known action: " ++ str)
+                Ok SpacialSearch ->
+                    case (Json.decodeString spacialSearchActionDecoder str) of
+                        Ok action ->
+                            ( { model
+                                | currentAction = Just SpacialSearch
+                                , spacialSearchAction = Just action
+                              }
+                            , Cmd.none
+                            )
+
+                        Err msg ->
+                            Debug.crash ("Error decoding Json SpacialSearchAction object: " ++ msg)
 
                 Err msg ->
                     Debug.crash ("Error decoding Json websocket message: " ++ msg)
@@ -183,6 +200,24 @@ update msg model =
             in
                 cmdModelPair
 
+        SpacialSearchUpdate result ->
+            let
+                log =
+                    if result.result == "Success" then
+                        Debug.log "found in spacial search" result
+                    else
+                        result
+
+                cmdModelPair =
+                    if result.result == "Success" then
+                        ( clearCurrentAction model, WebSocket.send digServer (encodeSpacialSearchResult result) )
+                    else if result.result == "Failure" && model.timeout then
+                        ( clearCurrentAction model, WebSocket.send digServer (encodeSpacialSearchResult result) )
+                    else
+                        ( model, Cmd.none )
+            in
+                cmdModelPair
+
         UpdateTick time ->
             case model.currentAction of
                 Just FindText ->
@@ -213,23 +248,33 @@ update msg model =
                         cmd =
                             case model.clickAction of
                                 Just action ->
-                                    case action.usedQueryType of
-                                        "TextQuery" ->
-                                            case action.usedTextQuery of
-                                                Just query ->
-                                                    click_searchText
-                                                        { digId = action.digId
-                                                        , textQuery = query.text
-                                                        }
-
-                                                Nothing ->
-                                                    Debug.crash "Unexpected: Text query object was null in Click action"
-
-                                        _ ->
-                                            Debug.crash ("Unexpected: Wrong query type found for Click action " ++ action.usedQueryType)
+                                    click_searchText (clickPortData action.digId action.prevQueries)
 
                                 Nothing ->
                                     Debug.crash "Unexpected: action state was empty while processing Click action"
+
+                        newModel =
+                            case model.timeoutTime of
+                                Nothing ->
+                                    { model | timeoutTime = Just (time + timeoutInSeconds * second) }
+
+                                Just timeoutTime ->
+                                    if (time - timeoutTime) >= 0 then
+                                        { model | timeout = True }
+                                    else
+                                        model
+                    in
+                        ( newModel, cmd )
+
+                Just SpacialSearch ->
+                    let
+                        cmd =
+                            case model.spacialSearchAction of
+                                Just action ->
+                                    spacialSearch (spacialSearchPortData action)
+
+                                Nothing ->
+                                    Debug.crash "Unexpected: action state was empty while processing SpacialSearch action"
 
                         newModel =
                             case model.timeoutTime of
@@ -265,6 +310,7 @@ subscriptions model =
         , Time.every (250 * millisecond) UpdateTick
         , findText_searchResult FindTextUpdate
         , click_searchResult ClickSearchUpdate
+        , spacialSearch_result SpacialSearchUpdate
         ]
 
 

@@ -2,6 +2,8 @@ package io.visualdig.featuretest
 
 import io.damo.aspen.Test
 import io.visualdig.Dig
+import io.visualdig.Dig.Companion.searchEastOf
+import io.visualdig.exceptions.DigSpacialException
 import io.visualdig.exceptions.DigTextNotFoundException
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.springframework.boot.SpringApplication
@@ -25,8 +27,9 @@ class DigFeatureTests : Test({
         dig?.goTo(URI("http://localhost:9292/testpage.html"))
 
         val element = dig!!.findText("Jolt")
-        element.click()
+        searchEastOf(element).forCheckbox()
 
+        element.click()
         dig!!.findText("jolted!")
     }
 
@@ -38,5 +41,18 @@ class DigFeatureTests : Test({
                 .isThrownBy { dig?.findText("galactic") }
                 .withMessageContaining("Could not find the text 'galactic' when doing a find text query.")
                 .withMessageContaining("Did you possibly mean to search for 'GALACTIC'?")
+    }
+
+    test("finds a closeResult checkbox") {
+        dig = Dig(digHtmlTestFile = URI("http://localhost:9292/dig-it.html"))
+        dig!!.goTo(URI("http://localhost:9292/testpage.html"))
+
+        val element = dig!!.findText("Nothing right of here")
+
+        assertThatExceptionOfType(DigSpacialException::class.java)
+                .isThrownBy { searchEastOf(element).forCheckbox() }
+                .withMessageContaining("Unable to find checkbox east of 'Nothing right of here' element.")
+                .withMessageContaining("The closest match was an element with id: checkbox-jolt.")
+                .withMessageContaining("The element was 1 pixels too far north to be considered aligned east.")
     }
 })

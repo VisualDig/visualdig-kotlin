@@ -7,28 +7,16 @@ import io.visualdig.exceptions.DigFatalException
 
 data class ClickAction (
         override val digId: Int,
-        override val usedQueryType: String,
-        override val usedTextQuery: DigTextQuery? = null
+        override val prevQueries: List<ExecutedQuery>
 ) : ActionOnElementInterface, TestActionInterface {
 
-    override val action: TestAction = TestAction(ClickAction.actionType())
+    override val action: TestAction = TestAction(actionType())
 
     companion object {
         fun actionType() = "Click"
 
-        fun createClickAction(digId: Int, query: DigElementQuery) : ClickAction {
-            val actionType = query.action().action.actionType
-            when(actionType) {
-                FindTextAction.actionType() -> {
-                    val textQuery = query as DigTextQuery
-                    return ClickAction(digId = digId,
-                                       usedQueryType = DigTextQuery.queryType(),
-                                       usedTextQuery = textQuery)
-                }
-                else -> {
-                    throw DigFatalException("Unable to resolve action type $actionType while creating ClickAction")
-                }
-            }
+        fun createClickAction(digId: Int, prevQueries: List<ExecutedQuery>) : ClickAction {
+            return ClickAction(digId = digId, prevQueries = prevQueries)
         }
     }
 }

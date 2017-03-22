@@ -3,9 +3,12 @@ package io.visualdig
 import io.visualdig.element.DigTextQuery
 import io.visualdig.element.DigWebElement
 import io.visualdig.exceptions.DigFatalException
+import io.visualdig.spacial.DigSpacialSearch
+import io.visualdig.spacial.Direction
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
 import java.net.URI
+import java.util.Arrays.asList
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
@@ -30,13 +33,19 @@ class Dig(
         if(result.digId == null)
             throw DigFatalException("DigTextNotFoundException was not thrown, and execution continued when it should not have.")
 
-        return DigWebElement(result.digId, DigTextQuery(text), digController())
+        return DigWebElement(result.digId, asList(DigTextQuery(text)), digController())
     }
 
     fun close() {
         this.context.get(5, TimeUnit.SECONDS).close()
         Thread.sleep(100)
         browserLauncher.stopBrowser()
+    }
+
+    companion object {
+        fun searchEastOf(elem : DigWebElement) : DigSpacialSearch {
+            return elem.spacialSearch(Direction.EAST)
+        }
     }
 
     private fun digController() = this.controller.get(5, TimeUnit.SECONDS)

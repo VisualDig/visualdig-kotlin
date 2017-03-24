@@ -51,7 +51,7 @@ when your test fails.
 
 The failure output for a **capitalization defect** would look like this:
 ```
-Could not find the text 'foo' when doing a find text query.
+Could not find the text 'foo' on page.
 
 
 Expected element text:
@@ -72,6 +72,7 @@ Suggestions:
 	at io.visualdig.Dig.findText(Dig.kt:31)
 	at io.visualdig.featuretest.DigFeatureTests$1$3.invoke(DigFeatureTests.kt:29)
 	at io.visualdig.featuretest.DigFeatureTests$1$3.invoke(DigFeatureTests.kt:13)
+	...
 ```
 
 
@@ -96,9 +97,9 @@ Spacial searches have many potential failures but the most common is an
 **alignment defect**. Put another way, the element you're looking for is in 
 the direction you specified, but was not aligned within the specified tolerance.
 
-The failure output for a capitalization defect would look like this:
+See this example below of an alignment defect error output:
 ```
-Could not find a checkbox east of element A. 
+Could not find a checkbox due east of element A.
 
 Expected: 
 
@@ -108,7 +109,8 @@ Expected:
     |___|    |___|
 
 
-Found:
+Found a checkbox B that wasn't aligned vertically:
+
               ___
              |   |
              | B |
@@ -122,7 +124,8 @@ Found:
 Suggestions:
 
     - Is the element you're searching for visible?
-    - Was your CSS changed to cause the element to be no longer aligned vertically?
+    - Was your CSS changed to cause the element to be no longer
+      aligned vertically?
 
 
 Additional Info:
@@ -130,7 +133,8 @@ Additional Info:
     A = Element with text 'foo'
     B = Checkbox with id: bar-checkbox
 
-    B was vertically off by 23 pixels, and it was expected to be less than 20 pixels off.
+    B was vertically off of perfect alignment by 23 pixels, and
+    it was expected to be less than 20 pixels off.
 
 
 
@@ -138,5 +142,6 @@ Additional Info:
 	at io.visualdig.Dig.findText(Dig.kt:31)
 	at io.visualdig.featuretest.DigFeatureTests$1$3.invoke(DigFeatureTests.kt:29)
 	at io.visualdig.featuretest.DigFeatureTests$1$3.invoke(DigFeatureTests.kt:13)
+	...
 ```
 

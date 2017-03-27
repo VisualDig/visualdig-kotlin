@@ -6,7 +6,7 @@ from scratch in Kotlin, Elm, and JavaScript.
 
 
 ## Mission
-Many popular feature testing frameworks that are available today often waste
+Many popular web feature testing frameworks that are available today often waste
 development time due to poor error messages, and failures that are inconsistent.
 
 Visual Dig aims to reduce the amount of time that developers spend writing, diagnosing, 
@@ -16,7 +16,7 @@ more productive.
 There are three major goals of the Visual Dig framework:
 
 - Reduce or eliminate false negatives
-- Reduce the likelihood of needing to change a test when your site changes
+- Reduce the likelihood of needing to change a test when your app changes
 - Better failure messages that help diagnose test issues quicker
 
 
@@ -33,7 +33,8 @@ VisualDig with Chrome.
 # Testing in VisualDig
 
 Visual Dig combines and uses APIs that were useful from Capybara, Selenium,
-and Fluentlenium.
+and Fluentlenium. It also introduces its own testing API in the way of spacial
+assertions.
 
 ### Finding a Text Element
 This is a simple test for finding text anywhere on the page.

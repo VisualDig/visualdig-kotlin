@@ -13,6 +13,7 @@ describe("SearchService", function () {
     describe("#spacialSearchFromAnchor", function () {
         it("happy path", function () {
             var mockResult = {
+                result: "pass it through!",
                 found: {
                     dataset: {
                         digId: "-1"
@@ -26,6 +27,8 @@ describe("SearchService", function () {
             var spacialSearchDataBase = {
                 direction: "East",
                 elementType: "Checkbox",
+                tolerance: 10,
+                priority: "AlignmentThenDistance",
                 digId: 2
             };
             var spacialSearchData = Object.assign({}, spacialSearchDataBase);
@@ -48,6 +51,7 @@ describe("SearchService", function () {
 
 
             expect(actualSearchResult).toEqual({
+                result: "pass it through!",
                 found: mockResult.found,
                 digId: 3,
                 closeResults: []
@@ -59,6 +63,7 @@ describe("SearchService", function () {
 
         it("fails to find checkbox to the east", function () {
             var mockResult = {
+                result: "pass it through!",
                 found: null,
                 closeResults: [{
                     x: 100,
@@ -73,6 +78,8 @@ describe("SearchService", function () {
             var spacialSearchDataBase = {
                 direction: "East",
                 elementType: "Checkbox",
+                tolerance: 10,
+                priority: "AlignmentThenDistance",
                 digId: 3
             };
             var spacialSearchData = Object.assign({}, spacialSearchDataBase);
@@ -93,6 +100,7 @@ describe("SearchService", function () {
 
 
             expect(actualSearchResult).toEqual({
+                result: "pass it through!",
                 found: null,
                 digId: null,
                 closeResults: [{
@@ -110,6 +118,7 @@ describe("SearchService", function () {
     describe("#textSearch", function () {
         it("happy path", function () {
             var mockResult = {
+                result: "pass it through!",
                 found: {
                     dataset: {
                         digId: "-1"
@@ -126,6 +135,7 @@ describe("SearchService", function () {
 
 
             expect(actualSearchResult).toEqual({
+                result: "pass it through!",
                 found: mockResult.found,
                 digId: 3,
                 closestMatches: []
@@ -137,6 +147,7 @@ describe("SearchService", function () {
 
         it("click action search with no digId", function () {
             var mockResult = {
+                result: "pass it through!",
                 found: {
                     dataset: {}
                 }
@@ -159,6 +170,7 @@ describe("SearchService", function () {
 
 
             expect(actualSearchResult).toEqual({
+                result: "pass it through!",
                 found: {
                     dataset: {
                         digId: "1"
@@ -173,6 +185,7 @@ describe("SearchService", function () {
 
         it("click action search with no digId but search term doesn't match previous query", function () {
             var mockResult = {
+                result: "pass it through!",
                 found: {
                     dataset: {}
                 }
@@ -201,6 +214,7 @@ describe("SearchService", function () {
 
         it("click action search that fails previous check", function () {
             var mockResult = {
+                result: "pass it through!",
                 found: null,
                 allStrings: [{
                     term: "powder",
@@ -228,6 +242,7 @@ describe("SearchService", function () {
 
 
             expect(actualSearchResult).toEqual({
+                result: "pass it through!",
                 found: null,
                 digId: null,
                 closestMatches: ["Pow", "powder"]

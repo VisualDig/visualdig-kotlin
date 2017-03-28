@@ -17,6 +17,7 @@ import io.visualdig.exceptions.DigWebsiteException
 import io.visualdig.results.*
 import io.visualdig.spacial.Direction
 import io.visualdig.spacial.ElementType
+import io.visualdig.spacial.SearchPriority
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import java.net.MalformedURLException
@@ -70,27 +71,10 @@ class DigSocketTest : Test({
 
             assertThatExceptionOfType(MalformedURLException::class.java).isThrownBy({ dig!!.goTo(URI("ht1tp:badurl.com")) })
         }
-
-        test("show failure from browser runner") {
-            verify(browserLauncher!!).launchBrowser(URI("http://localhost:8650/dig-it.html"), false)
-
-            makeClientSession(clientTestHelper, container)
-
-            clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
-                    expectedReceive = GoToAction(uri = "http://www.example.com/"),
-                    send = TestResult(result = Result.Failure, message = "Could not open website requested"),
-                    assertionBlock = ::assertMatchingMessage,
-                    delayInMs = 1000)
-
-            assertThatExceptionOfType(DigWebsiteException::class.java).isThrownBy({
-                dig!!.goTo(URI("http://www.example.com/"))
-            })
-        }
     }
 
     describe("#findText") {
         test("text exists") {
-
             verify(browserLauncher!!).launchBrowser(URI("http://localhost:8650/dig-it.html"), false)
 
             makeClientSession(clientTestHelper, container)
@@ -104,15 +88,16 @@ class DigSocketTest : Test({
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = FindTextAction(text = "foo text"),
-                    send = FindTextResult(result = Result.Success, digId = 12, closestMatches = emptyList()),
+                    send = FindTextResult(result = Result.Success,
+                            digId = 12,
+                            htmlId = "foo-html-id",
+                            closestMatches = emptyList()),
                     assertionBlock = ::assertMatchingMessage)
 
             val element = dig!!.findText("foo text")
 
             assertThat(element.digId).isEqualTo(12)
-
-            val textQuery: DigTextQuery = element.prevQueries.first() as DigTextQuery
-            assertThat(textQuery.text).isEqualTo("foo text")
+            assertThat(element.htmlId).isEqualTo("foo-html-id")
 
             clientTestHelper!!.assertReceivedServerMessage()
         }
@@ -131,7 +116,7 @@ class DigSocketTest : Test({
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = FindTextAction(text = "fo text"),
-                    send = FindTextResult(result = Result.Failure, digId = null, closestMatches = listOf("foo text")),
+                    send = FindTextResult(result = Result.Failure_NoMatch, digId = null, htmlId = null, closestMatches = listOf("foo text")),
                     assertionBlock = ::assertMatchingMessage)
 
             assertThatExceptionOfType(DigTextNotFoundException::class.java)
@@ -167,7 +152,8 @@ class DigSocketTest : Test({
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = FindTextAction(text = "foo text"),
-                    send = FindTextResult(result = Result.Success, digId = 7, closestMatches = emptyList()),
+                    send = FindTextResult(result = Result.Success, digId = 7,
+                            htmlId = "foo-html-id", closestMatches = emptyList()),
                     assertionBlock = ::assertMatchingMessage)
 
             val element = dig!!.findText("foo text")
@@ -201,7 +187,8 @@ class DigSocketTest : Test({
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = FindTextAction(text = "foo text"),
-                    send = FindTextResult(result = Result.Success, digId = 7, closestMatches = emptyList()),
+                    send = FindTextResult(result = Result.Success, digId = 7,
+                            htmlId = "foo-html-id", closestMatches = emptyList()),
                     assertionBlock = ::assertMatchingMessage)
 
             val element = dig!!.findText("foo text")
@@ -213,7 +200,7 @@ class DigSocketTest : Test({
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = ClickAction(digId = 7,
                             prevQueries = prevQueries),
-                    send = TestResult(result = Result.Failure, message = "Could not find previously found text 'foo text'"),
+                    send = TestResult(result = Result.Failure_QueryExpired, message = "Could not find previously found text 'foo text'"),
                     assertionBlock = ::assertMatchingMessage)
 
             assertThatExceptionOfType(DigPreviousQueryFailedException::class.java)
@@ -236,7 +223,8 @@ class DigSocketTest : Test({
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = FindTextAction(text = "foo text"),
-                    send = FindTextResult(result = Result.Success, digId = 7, closestMatches = emptyList()),
+                    send = FindTextResult(result = Result.Success, digId = 7,
+                            htmlId = "foo-html-id", closestMatches = emptyList()),
                     assertionBlock = ::assertMatchingMessage)
 
             val element = dig!!.findText("foo text")
@@ -252,22 +240,18 @@ class DigSocketTest : Test({
                             direction = Direction.EAST,
                             elementType = ElementType.CHECKBOX,
                             digId = 7,
-                            prevQueries = prevQueries
+                            prevQueries = prevQueries,
+                            toleranceInPixels = 20,
+                            priority = SearchPriority.ALIGNMENT_THEN_DISTANCE
                     ),
                     send = SpacialSearchResult(result = Result.Success,
-                            message = "",
                             digId = 8,
-                            closeResults = emptyList()),
+                            closeResults = emptyList(), htmlId = "foo-html-id"),
                     assertionBlock = ::assertMatchingMessage)
 
             val elementAfterSearch = searchEastOf(element).forCheckbox()
 
             assertThat(elementAfterSearch.digId).isEqualTo(8)
-
-            val prevQuery = elementAfterSearch.prevQueries.first() as DigSpacialQuery
-            assertThat(prevQuery.direction).isEqualTo(Direction.EAST)
-            assertThat(prevQuery.elementType).isEqualTo(ElementType.CHECKBOX)
-            assertThat(prevQuery.digId).isEqualTo(7)
 
             clientTestHelper!!.assertReceivedServerMessage()
         }
@@ -286,7 +270,8 @@ class DigSocketTest : Test({
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = FindTextAction(text = "foo text"),
-                    send = FindTextResult(result = Result.Success, digId = 7, closestMatches = emptyList()),
+                    send = FindTextResult(result = Result.Success, digId = 7,
+                            htmlId = "foo-html-id", closestMatches = emptyList()),
                     assertionBlock = ::assertMatchingMessage)
 
             val element = dig!!.findText("foo text")
@@ -297,24 +282,25 @@ class DigSocketTest : Test({
                     textQuery = DigTextQuery("foo text"),
                     spacialQuery = null))
 
-            val closestResult = CloseResult(100, 40, 20, "bar-id-1")
+            val closestResult = CloseResult(100, 40, 22, "bar-id-1")
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = SpacialSearchAction(
                             direction = Direction.EAST,
                             elementType = ElementType.CHECKBOX,
                             digId = 7,
-                            prevQueries = prevQueries),
-                    send = SpacialSearchResult(result = Result.Failure,
-                            message = "",
+                            prevQueries = prevQueries,
+                            toleranceInPixels = 22,
+                            priority = SearchPriority.ALIGNMENT_THEN_DISTANCE),
+                    send = SpacialSearchResult(result = Result.Failure_NoMatch,
                             digId = null,
-                            closeResults = asList(closestResult)),
+                            closeResults = asList(closestResult), htmlId = "foo-html-id"),
                     assertionBlock = ::assertMatchingMessage)
 
             assertThatExceptionOfType(DigSpacialException::class.java)
-                    .isThrownBy { searchEastOf(element).forCheckbox() }
+                    .isThrownBy { searchEastOf(element, tolerance = 22).forCheckbox() }
                     .withMessageContaining("Unable to find checkbox east of 'foo text' element.")
                     .withMessageContaining("The closest match was an element with id: bar-id-1.")
-                    .withMessageContaining("The element was 20 pixels too far north to be considered aligned east.")
+                    .withMessageContaining("The element was 18 pixels too far north to be considered aligned east.")
         }
 
         test("anchoring search element no longer exists") {
@@ -331,7 +317,8 @@ class DigSocketTest : Test({
 
             clientTestHelper!!.whenReceiveAction(clientTestHelper!!,
                     expectedReceive = FindTextAction(text = "foo text"),
-                    send = FindTextResult(result = Result.Success, digId = 7, closestMatches = emptyList()),
+                    send = FindTextResult(result = Result.Success, digId = 7,
+                            htmlId = "foo-html-id", closestMatches = emptyList()),
                     assertionBlock = ::assertMatchingMessage)
 
             val element = dig!!.findText("foo text")
@@ -345,11 +332,12 @@ class DigSocketTest : Test({
                             direction = Direction.EAST,
                             elementType = ElementType.CHECKBOX,
                             digId = 7,
-                            prevQueries = prevQueries),
-                    send = SpacialSearchResult(result = Result.Failure,
-                            message = "boring message not worth reading",
+                            prevQueries = prevQueries,
+                            toleranceInPixels = 20,
+                            priority = SearchPriority.ALIGNMENT_THEN_DISTANCE),
+                    send = SpacialSearchResult(result = Result.Failure_QueryExpired,
                             digId = null,
-                            closeResults = emptyList()),
+                            closeResults = emptyList(), htmlId = "foo-html-id"),
                     assertionBlock = ::assertMatchingMessage)
 
 

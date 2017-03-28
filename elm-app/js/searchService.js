@@ -35,6 +35,7 @@ SearchService.prototype.textSearch = function (text, action) {
         }
 
         return {
+            result: searchResult.result,
             found: searchResult.found,
             digId: digIdUsed,
             closestMatches: []
@@ -45,6 +46,7 @@ SearchService.prototype.textSearch = function (text, action) {
         });
 
         return {
+            result: searchResult.result,
             found: null,
             digId: null,
             closestMatches: searchResult.allStrings.map(function (a) {
@@ -69,12 +71,14 @@ SearchService.prototype.spacialSearchFromAnchor = function (node, action) {
         }
 
         return {
+            result: searchResult.result,
             found: searchResult.found,
             digId: digIdUsed,
             closeResults: []
         };
     } else {
         return {
+            result: searchResult.result,
             found: null,
             digId: null,
             closeResults: searchResult.closeResults

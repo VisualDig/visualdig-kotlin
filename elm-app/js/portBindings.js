@@ -24,7 +24,7 @@ export default function PortBindings(elm, pageQuerier, searchService) {
                     })
                 } else {
                     this.elm.ports.click_searchResult.send({
-                        result: "Failure",
+                        result: "Failure_QueryExpired",
                         message: "Text element not visible yet"
                     })
                 }
@@ -34,18 +34,20 @@ export default function PortBindings(elm, pageQuerier, searchService) {
 
     this.elmFindTextSearch =
         function (text) {
-            var searchResult = this.searchService.textSearch(text, text);
-            if (searchResult.found) {
+            var textResult = this.searchService.textSearch(text, text);
+            if (textResult.found) {
                 this.elm.ports.findText_searchResult.send({
                     result: "Success",
-                    digId: searchResult.digId,
+                    digId: textResult.digId,
+                    htmlId: textResult.found.id,
                     closestMatches: []
                 });
             } else {
                 this.elm.ports.findText_searchResult.send({
-                    result: "Failure",
+                    result: "Failure_" + textResult.result,
                     digId: null,
-                    closestMatches: searchResult.closestMatches
+                    htmlId: null,
+                    closestMatches: textResult.closestMatches
                 });
             }
         };
@@ -58,15 +60,15 @@ export default function PortBindings(elm, pageQuerier, searchService) {
                 if (result.found) {
                     this.elm.ports.spacialSearch_result.send({
                         result: "Success",
-                        message: "",
                         digId: result.digId,
+                        htmlId: result.found.id,
                         closeResults: []
                     });
                 } else {
                     this.elm.ports.spacialSearch_result.send({
-                        result: "Failure",
-                        message: "",
+                        result: "Failure_" + result.result,
                         digId: null,
+                        htmlId: null,
                         closeResults: result.closeResults
                     });
                 }
@@ -76,29 +78,29 @@ export default function PortBindings(elm, pageQuerier, searchService) {
                 // to get the anchor node. Right now we'll just go 1 level deep.
                 var latestQuery = spacialSearchAction.prevQueries[0];
                 if (latestQuery.queryType == "TextQuery") {
-                    var searchResult = this.pageQuerier.findTextSearch(latestQuery.textQuery.text);
-                    if (searchResult.found) {
-                        var result = this.searchService.spacialSearchFromAnchor(searchResult.found, spacialSearchAction);
+                    var textResult = this.pageQuerier.findTextSearch(latestQuery.textQuery.text);
+                    if (textResult.found) {
+                        var result = this.searchService.spacialSearchFromAnchor(textResult.found, spacialSearchAction);
                         if (result.found) {
                             this.elm.ports.spacialSearch_result.send({
                                 result: "Success",
-                                message: "",
                                 digId: result.digId,
+                                htmlId: result.found.id,
                                 closeResults: []
                             });
                         } else {
                             this.elm.ports.spacialSearch_result.send({
-                                result: "Failure",
-                                message: "",
+                                result: "Failure_" + result.result,
                                 digId: null,
+                                htmlId: null,
                                 closeResults: result.closeResults
                             });
                         }
                     } else {
                         this.elm.ports.spacialSearch_result.send({
-                            result: "Failure",
-                            message: "Anchor element is not visible or could not be found using previous query",
+                            result: "Failure_QueryExpired",
                             digId: null,
+                            htmlId: null,
                             closeResults: []
                         });
                     }

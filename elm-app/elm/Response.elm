@@ -5,12 +5,6 @@ import Json.Encode.Extra exposing (maybe)
 
 
 type alias TestResult =
-    { result : ActionResult
-    , message : String
-    }
-
-
-type alias TestResultJS =
     { result : String
     , message : String
     }
@@ -19,14 +13,15 @@ type alias TestResultJS =
 type alias FindTextSearchResult =
     { result : String
     , digId : Maybe Int
+    , htmlId : Maybe String
     , closestMatches : List String
     }
 
 
 type alias SpacialSearchResult =
     { result : String
-    , message : String
     , digId : Maybe Int
+    , htmlId : Maybe String
     , closeResults : List CloseSpacialResult
     }
 
@@ -39,31 +34,16 @@ type alias CloseSpacialResult =
     }
 
 
-type ActionResult
-    = Success
-    | Failure
-
-
-actionResult : String -> ActionResult
-actionResult value =
-    case value of
-        "Success" ->
-            Success
-
-        _ ->
-            Failure
-
-
 basicSuccessResult : TestResult
 basicSuccessResult =
-    { result = Success, message = "" }
+    { result = "Success", message = "" }
 
 
 encodeJsonResult : TestResult -> String
 encodeJsonResult result =
     encode 4
         (object
-            [ ( "result", string (toString result.result) )
+            [ ( "result", string result.result )
             , ( "message", string result.message )
             ]
         )
@@ -75,6 +55,7 @@ encodeFindTextResult result =
         (object
             [ ( "result", string result.result )
             , ( "digId", maybe int result.digId )
+            , ( "htmlId", maybe string result.htmlId )
             , ( "closestMatches", list (List.map (\a -> string a) result.closestMatches) )
             ]
         )
@@ -85,8 +66,8 @@ encodeSpacialSearchResult result =
     encode 4
         (object
             [ ( "result", string result.result )
-            , ( "message", string result.message )
             , ( "digId", maybe int result.digId )
+            , ( "htmlId", maybe string result.htmlId )
             , ( "closeResults", list (List.map encodeCloseSpacialSearchResult result.closeResults) )
             ]
         )

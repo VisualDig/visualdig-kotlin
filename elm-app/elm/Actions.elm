@@ -2,7 +2,7 @@ module Actions exposing (..)
 
 import Json.Decode exposing (Decoder, andThen, at, fail, field, int, list, map, maybe, string, succeed)
 import Json.Decode.Extra exposing ((|:))
-import Queries exposing (Direction, ElementType, ExecutedQuery, SpacialQuery, TextQuery, directionDecoder, elementTypeDecoder, executedQueryDecoder, spacialQueryDecoder, textQueryDecoder)
+import Queries exposing (Direction, ElementType, ExecutedQuery, SearchPriority, SpacialQuery, TextQuery, directionDecoder, elementTypeDecoder, executedQueryDecoder, searchPriorityDecoder, spacialQueryDecoder, textQueryDecoder)
 
 
 type alias GoToAction =
@@ -28,6 +28,8 @@ type alias SpacialSearchAction =
     { action : ActionType
     , direction : Direction
     , elementType : ElementType
+    , tolerance : Int
+    , priority : SearchPriority
     , digId : Int
     , prevQueries : List ExecutedQuery
     }
@@ -54,6 +56,8 @@ spacialSearchActionDecoder =
         |: actionTypeDecoder
         |: (field "direction" directionDecoder)
         |: (field "elementType" elementTypeDecoder)
+        |: (field "toleranceInPixels" int)
+        |: (field "priority" searchPriorityDecoder)
         |: (field "digId" int)
         |: (field "prevQueries" (list executedQueryDecoder))
 

@@ -5,6 +5,8 @@ import io.visualdig.Dig
 import io.visualdig.Dig.Companion.searchEastOf
 import io.visualdig.exceptions.DigSpacialException
 import io.visualdig.exceptions.DigTextNotFoundException
+import io.visualdig.spacial.SearchPriority
+import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
 import org.springframework.boot.SpringApplication
 import org.springframework.context.ConfigurableApplicationContext
@@ -43,16 +45,28 @@ class DigFeatureTests : Test({
                 .withMessageContaining("Did you possibly mean to search for 'GALACTIC'?")
     }
 
-    test("finds a closeResult checkbox") {
+    test("tests searchPriority") {
         dig = Dig(digHtmlTestFile = URI("http://localhost:9292/dig-it.html"))
         dig!!.goTo(URI("http://localhost:9292/testpage.html"))
 
-        val element = dig!!.findText("Nothing right of here")
+        val dtaAnchor = dig!!.findText("DistanceThenAlignment")
+        val dtaCheckbox = searchEastOf(dtaAnchor,
+                priority = SearchPriority.DISTANCE_THEN_ALIGNMENT).forCheckbox()
+        assertThat(dtaCheckbox.htmlId).isEqualTo("dta-B")
 
-        assertThatExceptionOfType(DigSpacialException::class.java)
-                .isThrownBy { searchEastOf(element).forCheckbox() }
-                .withMessageContaining("Unable to find checkbox east of 'Nothing right of here' element.")
-                .withMessageContaining("The closest match was an element with id: checkbox-jolt.")
-                .withMessageContaining("The element was 1 pixels too far north to be considered aligned east.")
+        val atdAnchor = dig!!.findText("AlignmentThenDistance")
+        val atdCheckbox = searchEastOf(atdAnchor,
+                priority = SearchPriority.ALIGNMENT_THEN_DISTANCE).forCheckbox()
+        assertThat(atdCheckbox.htmlId).isEqualTo("atd-B")
+
+        val doAnchor = dig!!.findText("DistanceOnly")
+        val doCheckbox = searchEastOf(doAnchor,
+                priority = SearchPriority.DISTANCE).forCheckbox()
+        assertThat(doCheckbox.htmlId).isEqualTo("do-C")
+
+        val aoAnchor = dig!!.findText("AlignmentOnly")
+        val aoCheckbox = searchEastOf(aoAnchor,
+                priority = SearchPriority.ALIGNMENT).forCheckbox()
+        assertThat(aoCheckbox.htmlId).isEqualTo("ao-B")
     }
 })

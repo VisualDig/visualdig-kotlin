@@ -100,7 +100,7 @@ the direction you specified, but was not aligned within the specified tolerance.
 
 See this example below of an alignment defect error output:
 ```
-Could not find a checkbox due east of element A.
+Could not find a checkbox element east of element A.
 
 Expected: 
 

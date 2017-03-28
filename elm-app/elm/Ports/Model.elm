@@ -29,6 +29,8 @@ type alias SpacialSearchPortData =
     , elementType : String
     , digId : Int
     , prevQueries : List ExecutedQueryData
+    , tolerance : Int
+    , priority : String
     }
 
 
@@ -38,6 +40,8 @@ spacialSearchPortData action =
     , elementType = toString action.elementType
     , digId = action.digId
     , prevQueries = List.map mapToExecutedQuery action.prevQueries
+    , tolerance = action.tolerance
+    , priority = toString action.priority
     }
 
 

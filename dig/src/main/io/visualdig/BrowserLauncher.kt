@@ -5,7 +5,9 @@ import java.net.URI
 import java.util.*
 import java.util.Locale.ENGLISH
 
-open class BrowserLauncher(val env : Map<String, String>, val commandRunner: CommandRunner, val operatingSystem: OperatingSystem) {
+open class BrowserLauncher(val env : Map<String, String>,
+                           val commandRunner: CommandRunner,
+                           val operatingSystem: OperatingSystem) {
     private var browserProcess : Process? = null
     private val dirsToDelete : MutableList<File> = ArrayList()
 

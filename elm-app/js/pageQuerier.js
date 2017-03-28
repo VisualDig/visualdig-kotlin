@@ -4,6 +4,7 @@ export default function PageQuerier(document, geometry) {
     this.range = null;
 }
 
+
 PageQuerier.prototype.levenshteinDistance = function (a, b) {
     // courtesy of github.com/kigiri
     if (a.length === 0) return b.length
@@ -41,6 +42,7 @@ PageQuerier.prototype.levenshteinDistance = function (a, b) {
     return row[a.length]
 };
 
+
 PageQuerier.prototype.getTextFromNode = function (node) {
     if (node.outerText && node.outerText !== "") {
         return node.outerText;
@@ -49,6 +51,7 @@ PageQuerier.prototype.getTextFromNode = function (node) {
     }
     return null;
 };
+
 
 PageQuerier.prototype.getElementByDigId = function (id) {
     var iframe = this.document.getElementById('siteUnderTest').contentDocument;
@@ -59,6 +62,7 @@ PageQuerier.prototype.getElementByDigId = function (id) {
         return null;
     }
 };
+
 
 PageQuerier.prototype.findTextSearch = function (text) {
     var iframe = this.document.getElementById('siteUnderTest').contentDocument;
@@ -83,16 +87,29 @@ PageQuerier.prototype.findTextSearch = function (text) {
     }
 
     return {
+        result: textElement ? "Success" : "NoMatch",
         allStrings: a,
         found: textElement
     };
 };
 
+
 PageQuerier.prototype.clickPageNode = function (node) {
     node.click();
 };
 
-PageQuerier.prototype.spacialSearch = function (anchorNode, spacialSearchQuery, options = {}) {
+
+PageQuerier.prototype.spacialSearch = function (anchorNode, spacialSearchQuery) {
+    var formatCloseResult = function (relativeCoords, node, spacialSearchQuery) {
+        return {
+            htmlId: node.id,
+            htmlClass: node.class,
+            tolerance: spacialSearchQuery.tolerance,
+            x: Math.round(relativeCoords.x),
+            y: Math.round(relativeCoords.y)
+        };
+    };
+
     var iframe = this.document.getElementById('siteUnderTest').contentDocument;
     var n, textElement = null,
         a = [],
@@ -102,9 +119,9 @@ PageQuerier.prototype.spacialSearch = function (anchorNode, spacialSearchQuery, 
             false);
 
     var anchorCoords = this.getAbsCoordinates(anchorNode, iframe);
-    var tolerance = options.tolerance || 20;
-    var toleranceRect = this.getToleranceRect(tolerance, anchorCoords, spacialSearchQuery.direction);
+    var toleranceRect = this.getToleranceRect(spacialSearchQuery.tolerance, anchorCoords, spacialSearchQuery.direction);
     var closeResults = []
+    var succeedResults = []
 
     while (n = walk.nextNode()) {
         if (spacialSearchQuery.elementType === "Checkbox") {
@@ -112,19 +129,19 @@ PageQuerier.prototype.spacialSearch = function (anchorNode, spacialSearchQuery, 
                 n.type === "checkbox") {
                 var checkboxCoords = this.getAbsCoordinates(n, iframe);
                 if (this.geometry.rectIntersect(toleranceRect, checkboxCoords)) {
-                    return {
+                    var relativeCoords = this.geometry.getRelativeCoords(anchorCoords, checkboxCoords);
+                    succeedResults.push({
                         found: n,
+                        relativeCoords: relativeCoords,
+                        distance: this.geometry.euclideanDistance(anchorCoords, checkboxCoords),
+                        alignment: this.getAlignmentScore(spacialSearchQuery.direction, relativeCoords),
                         closeResults: []
-                    };
+                    });
                 } else {
-                    var closeMatchRect = this.getToleranceRect(tolerance * 3, anchorCoords, spacialSearchQuery.direction);
+                    var closeMatchRect = this.getToleranceRect(spacialSearchQuery.tolerance * 3, anchorCoords, spacialSearchQuery.direction);
                     if (this.geometry.rectIntersect(closeMatchRect, checkboxCoords)) {
-                        var singleResult = this.geometry.getRelativeCoords(anchorCoords, checkboxCoords);
-                        singleResult.htmlId = n.id;
-                        singleResult.tolerance = tolerance;
-                        singleResult.htmlClass = n.class;
-                        singleResult.x = Math.round(singleResult.x);
-                        singleResult.y = Math.round(singleResult.y);
+                        var relativeCoords = this.geometry.getRelativeCoords(anchorCoords, checkboxCoords);
+                        var singleResult = formatCloseResult(relativeCoords, n, spacialSearchQuery);
                         closeResults.push(singleResult);
                     }
                 }
@@ -134,7 +151,41 @@ PageQuerier.prototype.spacialSearch = function (anchorNode, spacialSearchQuery, 
         }
     }
 
+    if (succeedResults.length == 1) {
+        delete succeedResults[0].distance;
+        delete succeedResults[0].alignment;
+        delete succeedResults[0].relativeCoords;
+
+        succeedResults[0].result = "Success";
+        return succeedResults[0];
+
+    } else if (succeedResults.length > 1) {
+        var isPrecise = this.sortByPriority(spacialSearchQuery.priority, succeedResults);
+
+        if (!isPrecise) {
+            var ambiguousResults = succeedResults.map(function (item) {
+                return formatCloseResult(item.relativeCoords,
+                    item.found,
+                    spacialSearchQuery
+                );
+            });
+            return {
+                result: "AmbiguousMatch",
+                found: null,
+                closeResults: ambiguousResults
+            }
+        }
+
+        delete succeedResults[0].alignment;
+        delete succeedResults[0].distance;
+        delete succeedResults[0].relativeCoords;
+
+        succeedResults[0].result = "Success";
+        return succeedResults[0];
+    }
+
     return {
+        result: "NoMatch",
         found: null,
         closeResults: closeResults
     }
@@ -154,6 +205,62 @@ PageQuerier.prototype.getAbsCoordinates = function (node, doc) {
         y: (nodeRect.top - bodyRect.top) + nodeRect.height / 2
     };
 };
+
+
+PageQuerier.prototype.sortByPriority = function (priority, results) {
+    if (priority === "Distance") {
+        results.sort(function (a, b) {
+            return a.distance - b.distance;
+        });
+
+        if (Math.round(results[0].distance) == Math.round(results[1].distance)) {
+            return false;
+        }
+    } else if (priority === "Alignment") {
+        results.sort(function (a, b) {
+            return a.alignment - b.alignment;
+        });
+
+        if (Math.round(results[0].alignment) == Math.round(results[1].alignment)) {
+            return false;
+        }
+    } else if (priority === "AlignmentThenDistance") {
+        results.sort(function (a, b) {
+            var alignment = a.alignment - b.alignment;
+            if (Math.round(alignment) === 0) {
+                return a.distance - b.distance;
+            }
+            return Math.round(alignment);
+        });
+    } else if (priority === "DistanceThenAlignment") {
+        results.sort(function (a, b) {
+            var distance = a.distance - b.distance;
+            if (Math.round(distance) === 0) {
+                return a.alignment - b.alignment;
+            }
+            return Math.round(distance);
+        });
+    }
+    return true;
+};
+
+
+PageQuerier.prototype.getAlignmentScore = function (direction, relativeCoords) {
+    if (direction == "East") {
+        return Math.abs(relativeCoords.y);
+
+    } else if (direction == "West") {
+        return Math.abs(relativeCoords.y);
+
+    } else if (direction == "North") {
+        return Math.abs(relativeCoords.x);
+
+    } else if (direction == "South") {
+        return Math.abs(relativeCoords.x);
+
+    }
+};
+
 
 PageQuerier.prototype.getToleranceRect = function (tolerance, anchorCoords, direction) {
     if (direction == "East") {

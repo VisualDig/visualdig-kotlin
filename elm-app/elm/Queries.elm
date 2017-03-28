@@ -15,6 +15,13 @@ type ElementType
     = Checkbox
 
 
+type SearchPriority
+    = Distance
+    | Alignment
+    | DistanceThenAlignment
+    | AlignmentThenDistance
+
+
 type QueryType
     = Text
     | SpacialSearch
@@ -34,6 +41,8 @@ type alias TextQuery =
 type alias SpacialQuery =
     { direction : Direction
     , elementType : ElementType
+    , tolerance : Int
+    , priority : SearchPriority
     , digId : Int
     }
 
@@ -57,6 +66,8 @@ spacialQueryDecoder =
     succeed SpacialQuery
         |: (field "direction" directionDecoder)
         |: (field "elementType" elementTypeDecoder)
+        |: (field "tolerance" int)
+        |: (field "priority" searchPriorityDecoder)
         |: (field "digId" int)
 
 
@@ -123,4 +134,31 @@ elementTypeHelper elementType =
             fail <|
                 "Trying to decode elementType, but value "
                     ++ elementType
+                    ++ " is not supported."
+
+
+searchPriorityDecoder : Decoder SearchPriority
+searchPriorityDecoder =
+    string |> andThen searchPriorityHelper
+
+
+searchPriorityHelper : String -> Decoder SearchPriority
+searchPriorityHelper priority =
+    case String.toLower priority of
+        "distance" ->
+            succeed Distance
+
+        "alignment" ->
+            succeed Alignment
+
+        "distance_then_alignment" ->
+            succeed DistanceThenAlignment
+
+        "alignment_then_distance" ->
+            succeed AlignmentThenDistance
+
+        _ ->
+            fail <|
+                "Trying to decode search priority, but value "
+                    ++ priority
                     ++ " is not supported."

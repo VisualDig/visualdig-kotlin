@@ -14,7 +14,7 @@ import Json.Decode as Json
 import Ports.Model exposing (clickPortData, spacialSearchPortData)
 import Ports.SpacialSearch exposing (spacialSearch, spacialSearch_result)
 import Queries exposing (QueryType(Text))
-import Response exposing (ActionResult, FindTextSearchResult, SpacialSearchResult, TestResultJS, actionResult, basicSuccessResult, encodeFindTextResult, encodeJsonResult, encodeSpacialSearchResult)
+import Response exposing (FindTextSearchResult, SpacialSearchResult, TestResult, basicSuccessResult, encodeFindTextResult, encodeJsonResult, encodeSpacialSearchResult)
 import Time exposing (Time, inSeconds, millisecond, second)
 import WebSocket
 
@@ -89,7 +89,7 @@ type Msg
     | WebsiteLoaded
     | UpdateTick Time
     | FindTextUpdate FindTextSearchResult
-    | ClickSearchUpdate TestResultJS
+    | ClickSearchUpdate TestResult
     | SpacialSearchUpdate SpacialSearchResult
 
 
@@ -153,48 +153,37 @@ update msg model =
                 Err msg ->
                     Debug.crash ("Error decoding Json websocket message: " ++ msg)
 
-        FindTextUpdate search ->
+        FindTextUpdate response ->
             let
                 log =
-                    if search.result == "Success" then
-                        Debug.log "found element" search
+                    if String.startsWith "Success" response.result then
+                        Debug.log "found element" response
                     else
-                        search
-
-                response =
-                    { result = search.result
-                    , digId = search.digId
-                    , closestMatches = search.closestMatches
-                    }
+                        response
 
                 cmdModelPair =
-                    if search.result == "Success" then
+                    if String.startsWith "Success" response.result then
                         ( clearCurrentAction model, WebSocket.send digServer (encodeFindTextResult response) )
-                    else if search.result == "Failure" && model.timeout then
+                    else if String.startsWith "Failure" response.result && model.timeout then
                         ( clearCurrentAction model, WebSocket.send digServer (encodeFindTextResult response) )
                     else
                         ( model, Cmd.none )
             in
                 cmdModelPair
 
-        ClickSearchUpdate search ->
+        ClickSearchUpdate result ->
             let
                 log =
-                    if search.result == "Success" then
-                        Debug.log "found element and clicked it" search
+                    if String.startsWith "Success" result.result then
+                        Debug.log "found element and clicked it" result
                     else
-                        search
-
-                response =
-                    { result = actionResult search.result
-                    , message = search.message
-                    }
+                        result
 
                 cmdModelPair =
-                    if search.result == "Success" then
-                        ( clearCurrentAction model, WebSocket.send digServer (encodeJsonResult response) )
-                    else if search.result == "Failure" && model.timeout then
-                        ( clearCurrentAction model, WebSocket.send digServer (encodeJsonResult response) )
+                    if String.startsWith "Success" result.result then
+                        ( clearCurrentAction model, WebSocket.send digServer (encodeJsonResult result) )
+                    else if String.startsWith "Failure" result.result && model.timeout then
+                        ( clearCurrentAction model, WebSocket.send digServer (encodeJsonResult result) )
                     else
                         ( model, Cmd.none )
             in
@@ -203,15 +192,15 @@ update msg model =
         SpacialSearchUpdate result ->
             let
                 log =
-                    if result.result == "Success" then
+                    if String.startsWith "Success" result.result then
                         Debug.log "found in spacial search" result
                     else
                         result
 
                 cmdModelPair =
-                    if result.result == "Success" then
+                    if String.startsWith "Success" result.result then
                         ( clearCurrentAction model, WebSocket.send digServer (encodeSpacialSearchResult result) )
-                    else if result.result == "Failure" && model.timeout then
+                    else if String.startsWith "Failure" result.result && model.timeout then
                         ( clearCurrentAction model, WebSocket.send digServer (encodeSpacialSearchResult result) )
                     else
                         ( model, Cmd.none )

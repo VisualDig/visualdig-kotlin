@@ -59,16 +59,19 @@ describe("PageQuerier", function () {
             var actualResult = pageQuerier.spacialSearch(node1, {
                 direction: "East",
                 elementType: "Checkbox",
+                tolerance: 10,
+                priority: "AlignmentThenDistance",
                 digId: 2
             });
 
 
             sinon.assert.calledOnce(documentMock.getElementById().contentDocument.createTreeWalker);
 
-            sinon.assert.calledTwice(treeWalkerStub.nextNode);
+            sinon.assert.calledThrice(treeWalkerStub.nextNode);
             sinon.assert.calledTwice(getAbsCoordinatesStub);
 
             expect(actualResult).toEqual({
+                result: "Success",
                 found: foundNode2,
                 closeResults: []
             });
@@ -128,6 +131,8 @@ describe("PageQuerier", function () {
             var actualResult = pageQuerier.spacialSearch(node1, {
                 direction: "East",
                 elementType: "Checkbox",
+                tolerance: 10,
+                priority: "AlignmentThenDistance",
                 digId: 2
             });
 
@@ -138,6 +143,7 @@ describe("PageQuerier", function () {
             sinon.assert.calledTwice(getAbsCoordinatesStub);
 
             expect(actualResult).toEqual({
+                result: "NoMatch",
                 found: null,
                 closeResults: []
             });
@@ -199,6 +205,8 @@ describe("PageQuerier", function () {
             var actualResult = pageQuerier.spacialSearch(node1, {
                 direction: "East",
                 elementType: "Checkbox",
+                tolerance: 10,
+                priority: "AlignmentThenDistance",
                 digId: 2
             });
 
@@ -213,16 +221,544 @@ describe("PageQuerier", function () {
             expect(actualResult.closeResults[0].y).toEqual(24);
 
             expect(actualResult).toEqual({
+                result: "NoMatch",
                 found: null,
                 closeResults: [{
                     x: 90,
                     y: 24,
-                    tolerance: 20,
+                    tolerance: 10,
                     htmlClass: 'false-wall',
                     htmlId: 'secret-of-the-trees'
                 }]
             });
 
+        });
+
+        it("resolves multiple results according to distance priority", function () {
+            var treeWalkerStub = {
+                nextNode: sinon.stub()
+            };
+
+            var createTreeWalkerStub = sinon.stub();
+            createTreeWalkerStub.returns(treeWalkerStub);
+
+            documentMock = {
+                getElementById: function () {
+                    return {
+                        contentDocument: {
+                            createTreeWalker: createTreeWalkerStub
+                        }
+                    }
+                }
+            };
+
+
+            var node1 = {
+                tagName: "DIV",
+                type: undefined,
+            };
+
+            var foundNode2 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node2"
+
+            };
+
+            var foundNode3 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node3"
+            };
+
+            treeWalkerStub.nextNode
+                .onFirstCall().returns(node1)
+                .onSecondCall().returns(foundNode2)
+                .onThirdCall().returns(foundNode3)
+                .onCall(4).returns(null);
+
+            pageQuerier = new PageQuerier(documentMock, new Geometry());
+            var getAbsCoordinatesStub = sinon.stub(pageQuerier, "getAbsCoordinates")
+            getAbsCoordinatesStub
+                .onFirstCall().returns({
+                    x: 15,
+                    y: 115,
+                    left: 0,
+                    top: 100
+                })
+                .onSecondCall().returns({
+                    x: 110,
+                    y: 135,
+                    left: 105,
+                    top: 130
+                })
+                .onThirdCall().returns({
+                    x: 100,
+                    y: 95,
+                    left: 95,
+                    top: 90
+                });
+
+
+            var actualResult = pageQuerier.spacialSearch(node1, {
+                direction: "East",
+                elementType: "Checkbox",
+                tolerance: 25,
+                priority: "Distance",
+                digId: 2
+            });
+
+
+            sinon.assert.calledOnce(documentMock.getElementById().contentDocument.createTreeWalker);
+
+            expect(treeWalkerStub.nextNode.callCount).toEqual(4);
+            expect(getAbsCoordinatesStub.callCount).toEqual(3);
+
+            expect(actualResult).toEqual({
+                result: "Success",
+                found: foundNode3,
+                closeResults: []
+            });
+        });
+
+        it("multiple results with equal distance using distance priority", function () {
+            var treeWalkerStub = {
+                nextNode: sinon.stub()
+            };
+
+            var createTreeWalkerStub = sinon.stub();
+            createTreeWalkerStub.returns(treeWalkerStub);
+
+            documentMock = {
+                getElementById: function () {
+                    return {
+                        contentDocument: {
+                            createTreeWalker: createTreeWalkerStub
+                        }
+                    }
+                }
+            };
+
+
+            var node1 = {
+                tagName: "DIV",
+                type: undefined,
+            };
+
+            var foundNode2 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node2"
+
+            };
+
+            var foundNode3 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node3"
+            };
+
+            treeWalkerStub.nextNode
+                .onCall(0).returns(node1)
+                .onCall(1).returns(foundNode2)
+                .onCall(2).returns(foundNode3)
+                .onCall(3).returns(null);
+
+            pageQuerier = new PageQuerier(documentMock, new Geometry());
+            var getAbsCoordinatesStub = sinon.stub(pageQuerier, "getAbsCoordinates")
+            getAbsCoordinatesStub.onFirstCall().returns({
+                x: 15,
+                y: 115,
+            });
+            getAbsCoordinatesStub.onSecondCall().returns({
+                x: 110,
+                y: 135,
+            });
+            getAbsCoordinatesStub.onThirdCall().returns({
+                x: 110,
+                y: 95,
+            });
+
+
+            var actualResult = pageQuerier.spacialSearch(node1, {
+                direction: "East",
+                elementType: "Checkbox",
+                tolerance: 25,
+                priority: "Distance",
+                digId: 2
+            });
+
+
+            sinon.assert.calledOnce(documentMock.getElementById().contentDocument.createTreeWalker);
+
+            expect(treeWalkerStub.nextNode.callCount).toEqual(4);
+            expect(getAbsCoordinatesStub.callCount).toEqual(3);
+
+            expect(actualResult.found).toBeNull();
+            expect([
+                actualResult.closeResults[0].htmlId,
+                actualResult.closeResults[1].htmlId
+            ]).toContain('node2');
+
+            expect([
+                actualResult.closeResults[0].htmlId,
+                actualResult.closeResults[1].htmlId
+            ]).toContain('node3');
+
+            expect(actualResult.result).toEqual('AmbiguousMatch');
+        });
+
+        it("resolves multiple results according to alignment priority", function () {
+            var treeWalkerStub = {
+                nextNode: sinon.stub()
+            };
+
+            var createTreeWalkerStub = sinon.stub();
+            createTreeWalkerStub.returns(treeWalkerStub);
+
+            documentMock = {
+                getElementById: function () {
+                    return {
+                        contentDocument: {
+                            createTreeWalker: createTreeWalkerStub
+                        }
+                    }
+                }
+            };
+
+
+            var node1 = {
+                tagName: "DIV",
+                type: undefined,
+            };
+
+            var foundNode2 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node2"
+
+            };
+
+            var foundNode3 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node3"
+            };
+
+            treeWalkerStub.nextNode.onCall(0).returns(node1);
+            treeWalkerStub.nextNode.onCall(1).returns(foundNode2);
+            treeWalkerStub.nextNode.onCall(2).returns(foundNode3);
+            treeWalkerStub.nextNode.onCall(3).returns(null);
+
+            pageQuerier = new PageQuerier(documentMock, new Geometry());
+            var getAbsCoordinatesStub = sinon.stub(pageQuerier, "getAbsCoordinates")
+            getAbsCoordinatesStub.onFirstCall().returns({
+                x: 15,
+                y: 115,
+                left: 0,
+                top: 100
+            });
+            getAbsCoordinatesStub.onSecondCall().returns({
+                x: 85,
+                y: 125,
+                left: 80,
+                top: 130
+            });
+            getAbsCoordinatesStub.onThirdCall().returns({
+                x: 105,
+                y: 115,
+                left: 100,
+                top: 90
+            });
+
+
+            var actualResult = pageQuerier.spacialSearch(node1, {
+                direction: "East",
+                elementType: "Checkbox",
+                tolerance: 25,
+                priority: "Alignment",
+                digId: 2
+            });
+
+
+            sinon.assert.calledOnce(documentMock.getElementById().contentDocument.createTreeWalker);
+
+            expect(treeWalkerStub.nextNode.callCount).toEqual(4);
+            expect(getAbsCoordinatesStub.callCount).toEqual(3);
+
+            expect(actualResult).toEqual({
+                result: "Success",
+                found: foundNode3,
+                closeResults: []
+            });
+        });
+
+        it("multiple results with equal alignment using alignment priority", function () {
+            var treeWalkerStub = {
+                nextNode: sinon.stub()
+            };
+
+            var createTreeWalkerStub = sinon.stub();
+            createTreeWalkerStub.returns(treeWalkerStub);
+
+            documentMock = {
+                getElementById: function () {
+                    return {
+                        contentDocument: {
+                            createTreeWalker: createTreeWalkerStub
+                        }
+                    }
+                }
+            };
+
+
+            var node1 = {
+                tagName: "DIV",
+                type: undefined,
+            };
+
+            var foundNode2 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node2"
+
+            };
+
+            var foundNode3 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node3"
+            };
+
+            treeWalkerStub.nextNode.onCall(0).returns(node1);
+            treeWalkerStub.nextNode.onCall(1).returns(foundNode2);
+            treeWalkerStub.nextNode.onCall(2).returns(foundNode3);
+            treeWalkerStub.nextNode.onCall(3).returns(null);
+
+            pageQuerier = new PageQuerier(documentMock, new Geometry());
+            var getAbsCoordinatesStub = sinon.stub(pageQuerier, "getAbsCoordinates")
+            getAbsCoordinatesStub.onFirstCall().returns({
+                x: 15,
+                y: 115,
+            });
+            getAbsCoordinatesStub.onSecondCall().returns({
+                x: 85,
+                y: 125,
+            });
+            getAbsCoordinatesStub.onThirdCall().returns({
+                x: 105,
+                y: 125,
+            });
+
+
+            var actualResult = pageQuerier.spacialSearch(node1, {
+                direction: "East",
+                elementType: "Checkbox",
+                tolerance: 25,
+                priority: "Alignment",
+                digId: 2
+            });
+
+
+            sinon.assert.calledOnce(documentMock.getElementById().contentDocument.createTreeWalker);
+
+            expect(treeWalkerStub.nextNode.callCount).toEqual(4);
+            expect(getAbsCoordinatesStub.callCount).toEqual(3);
+
+            expect(actualResult.found).toBeNull();
+            expect([
+                actualResult.closeResults[0].htmlId,
+                actualResult.closeResults[1].htmlId
+            ]).toContain('node2');
+
+            expect([
+                actualResult.closeResults[0].htmlId,
+                actualResult.closeResults[1].htmlId
+            ]).toContain('node3');
+
+            expect(actualResult.result).toEqual('AmbiguousMatch');
+        });
+
+        it("resolves multiple results according to alignment then distance priority", function () {
+            var treeWalkerStub = {
+                nextNode: sinon.stub()
+            };
+
+            var createTreeWalkerStub = sinon.stub();
+            createTreeWalkerStub.returns(treeWalkerStub);
+
+            documentMock = {
+                getElementById: function () {
+                    return {
+                        contentDocument: {
+                            createTreeWalker: createTreeWalkerStub
+                        }
+                    }
+                }
+            };
+
+
+            var node1 = {
+                tagName: "DIV",
+                type: undefined,
+            };
+
+            var checkboxNode2 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node2"
+
+            };
+
+            var checkboxNode3 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node3"
+            };
+
+            var checkboxNode4 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node4"
+            };
+
+
+            treeWalkerStub.nextNode.onCall(0).returns(node1);
+            treeWalkerStub.nextNode.onCall(1).returns(checkboxNode2);
+            treeWalkerStub.nextNode.onCall(2).returns(checkboxNode3);
+            treeWalkerStub.nextNode.onCall(3).returns(checkboxNode4);
+            treeWalkerStub.nextNode.onCall(4).returns(null);
+
+            pageQuerier = new PageQuerier(documentMock, new Geometry());
+            var getAbsCoordinatesStub = sinon.stub(pageQuerier, "getAbsCoordinates")
+            getAbsCoordinatesStub.onCall(0).returns({
+                x: 15,
+                y: 125,
+            });
+            getAbsCoordinatesStub.onCall(1).returns({
+                x: 135,
+                y: 125,
+            });
+            getAbsCoordinatesStub.onCall(2).returns({
+                x: 110,
+                y: 125.1,
+            });
+            getAbsCoordinatesStub.onCall(3).returns({
+                x: 80,
+                y: 101,
+            });
+
+
+            var actualResult = pageQuerier.spacialSearch(node1, {
+                direction: "East",
+                elementType: "Checkbox",
+                tolerance: 25,
+                priority: "AlignmentThenDistance",
+                digId: 2
+            });
+
+
+            sinon.assert.calledOnce(documentMock.getElementById().contentDocument.createTreeWalker);
+
+            expect(treeWalkerStub.nextNode.callCount).toEqual(5);
+            expect(getAbsCoordinatesStub.callCount).toEqual(4);
+
+            expect(actualResult).toEqual({
+                result: "Success",
+                found: checkboxNode3,
+                closeResults: []
+            });
+        });
+
+        it("resolves multiple results according to distance then alignment priority", function () {
+            var treeWalkerStub = {
+                nextNode: sinon.stub()
+            };
+
+            var createTreeWalkerStub = sinon.stub();
+            createTreeWalkerStub.returns(treeWalkerStub);
+
+            documentMock = {
+                getElementById: function () {
+                    return {
+                        contentDocument: {
+                            createTreeWalker: createTreeWalkerStub
+                        }
+                    }
+                }
+            };
+
+
+            var node1 = {
+                tagName: "DIV",
+                type: undefined,
+            };
+
+            var checkboxNode2 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node2"
+
+            };
+
+            var checkboxNode3 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node3"
+            };
+
+            var checkboxNode4 = {
+                tagName: "INPUT",
+                type: "checkbox",
+                id: "node4"
+            };
+
+
+            treeWalkerStub.nextNode.onCall(0).returns(node1);
+            treeWalkerStub.nextNode.onCall(1).returns(checkboxNode2);
+            treeWalkerStub.nextNode.onCall(2).returns(checkboxNode3);
+            treeWalkerStub.nextNode.onCall(3).returns(checkboxNode4);
+            treeWalkerStub.nextNode.onCall(4).returns(null);
+
+            pageQuerier = new PageQuerier(documentMock, new Geometry());
+            var getAbsCoordinatesStub = sinon.stub(pageQuerier, "getAbsCoordinates")
+            getAbsCoordinatesStub.onCall(0).returns({
+                x: 15,
+                y: 125,
+            });
+            getAbsCoordinatesStub.onCall(1).returns({
+                x: 135,
+                y: 125,
+            });
+            getAbsCoordinatesStub.onCall(2).returns({
+                x: 110,
+                y: 125,
+            });
+            getAbsCoordinatesStub.onCall(3).returns({
+                x: 109.4,
+                y: 135,
+            });
+
+
+            var actualResult = pageQuerier.spacialSearch(node1, {
+                direction: "East",
+                elementType: "Checkbox",
+                tolerance: 25,
+                priority: "DistanceThenAlignment",
+                digId: 2
+            });
+
+
+            sinon.assert.calledOnce(documentMock.getElementById().contentDocument.createTreeWalker);
+
+            expect(treeWalkerStub.nextNode.callCount).toEqual(5);
+            expect(getAbsCoordinatesStub.callCount).toEqual(4);
+
+            expect(actualResult).toEqual({
+                result: "Success",
+                found: checkboxNode3,
+                closeResults: []
+            });
         });
     });
 
@@ -267,7 +803,6 @@ describe("PageQuerier", function () {
 
 
             var actualResult = pageQuerier.getAbsCoordinates(node1, documentMock);
-
 
 
             sinon.assert.calledOnce(bodyGetBoundingRectStub);

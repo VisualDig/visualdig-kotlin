@@ -1,12 +1,14 @@
 package io.visualdig.results
 
 enum class Result(val result: String) {
-    Failure("Failure"),
+    Failure_NoMatch("Failure_NoMatch"),
+    Failure_AmbiguousMatch("Failure_AmbiguousMatch"),
+    Failure_QueryExpired("Failure_QueryExpired"),
     Success("Success")
 }
 
 fun Result.isFailure() : Boolean {
-    return this == Result.Failure
+    return this.result.startsWith("Failure")
 }
 fun Result.isSuccess() : Boolean {
     return this == Result.Success

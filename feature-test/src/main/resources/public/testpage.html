@@ -17,18 +17,44 @@
             node.style = "text-transform: uppercase;";
             document.getElementsByTagName('body')[0].appendChild(node);
         },1550);
+
+
     </script>
 </head>
 <body>
-    <h2>Test Page</h2>
-    <img src="http://deelay.me/1000/http://deelay.me/img/1000ms.gif">
+<h2>Test Page</h2>
+<img src="http://deelay.me/1000/http://deelay.me/img/1000ms.gif">
+<div>
+    <span>
+        <input type="button" value="Jolt" onclick="createDiv()">
+        <label for="checkbox-jolt">Checkbox Label</label>
+        <input id="checkbox-jolt" type="checkbox">
+    </span>
     <div>
-        <span>
-            <input type="button" value="Jolt" onclick="createDiv()">
-            <label for="checkbox-jolt">Checkbox Label</label>
-            <input id="checkbox-jolt" type="checkbox">
-            <div style="margin-top:3px">Nothing right of here</div>
-        </span>
+
+        <div style="position: relative; height: 50px; margin-top: 10px;">
+            <div style="position:absolute; top: 12; left: 0;">DistanceThenAlignment</div>
+            <input style="position: absolute; top: 0; left: 180;" id="dta-C" type="checkbox">
+            <input style="position: absolute; top: 12; left: 181;" id="dta-B" type="checkbox">
+            <input style="position: absolute; top: 12; left: 200;" id="dta-D" type="checkbox">
+        </div>
+        <div style="position: relative; height: 50px;">
+            <div style="position:absolute; top: 12; left: 0;">AlignmentThenDistance</div>
+            <input style="position: absolute; top: 0; left: 180;" id="atd-C" type="checkbox">
+            <input style="position: absolute; top: 12; left: 195;" id="atd-B" type="checkbox">
+            <input style="position: absolute; top: 12; left: 215;" id="atd-D" type="checkbox">
+        </div>
+        <div style="position: relative; height: 50px;">
+            <div style="position:absolute; top: 12; left: 0;">DistanceOnly</div>
+            <input style="position: absolute; top: 0; left: 180;" id="do-C" type="checkbox">
+            <input style="position: absolute; top: 12; left: 195;" id="do-B" type="checkbox">
+        </div>
+        <div style="position: relative; height: 50px;">
+            <div style="position:absolute; top: 12; left: 0;">AlignmentOnly</div>
+            <input style="position: absolute; top: 0; left: 180;" id="ao-C" type="checkbox">
+            <input style="position: absolute; top: 12; left: 195;" id="ao-B" type="checkbox">
+        </div>
     </div>
+</div>
 </body>
 </html>

@@ -1,6 +1,6 @@
 port module Ports.FindText exposing (..)
 
-import Response exposing (ActionResult, FindTextSearchResult)
+import Response exposing (FindTextSearchResult)
 
 
 port findText_search : String -> Cmd msg

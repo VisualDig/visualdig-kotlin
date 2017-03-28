@@ -3,19 +3,14 @@ package io.visualdig
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import io.visualdig.actions.ActionOnElementInterface
 import io.visualdig.actions.ClickAction
 import io.visualdig.actions.ExecutedQuery.Companion.createExecutedQuery
 import io.visualdig.actions.GoToAction
 import io.visualdig.actions.SpacialSearchAction
 import io.visualdig.element.DigElementQuery
-import io.visualdig.element.DigSpacialQuery
 import io.visualdig.element.DigTextQuery
-import io.visualdig.element.DigWebElement
 import io.visualdig.exceptions.*
 import io.visualdig.results.*
-import io.visualdig.spacial.Direction
-import io.visualdig.spacial.ElementType
 import org.springframework.beans.factory.config.BeanDefinition.SCOPE_SINGLETON
 import org.springframework.context.annotation.Scope
 import org.springframework.web.socket.TextMessage
@@ -23,14 +18,13 @@ import org.springframework.web.socket.WebSocketSession
 import org.springframework.web.socket.handler.TextWebSocketHandler
 import java.net.URI
 import java.net.URL
-import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 import kotlin.properties.Delegates
 import kotlin.reflect.KClass
 
 @Scope(SCOPE_SINGLETON)
-class DigController : TextWebSocketHandler() {
+open class DigController : TextWebSocketHandler() {
     private var initialized: Boolean = false
 
     private val futureSession: CompletableFuture<WebSocketSession> = CompletableFuture()
@@ -109,7 +103,7 @@ class DigController : TextWebSocketHandler() {
         return validResult
     }
 
-    fun click(digId: Int, prevQueries: List<DigElementQuery>) {
+    open fun click(digId: Int, prevQueries: List<DigElementQuery>) {
         if (!initialized) {
             throw DigWebsiteException("Call Dig.goTo before calling any queryUsed or interaction methods.")
         }
@@ -123,7 +117,7 @@ class DigController : TextWebSocketHandler() {
         }
     }
 
-    fun search(action: SpacialSearchAction): SpacialSearchResult {
+    open fun search(action: SpacialSearchAction): SpacialSearchResult {
         if (!initialized) {
             throw DigWebsiteException("Call Dig.goTo before calling any action or interaction methods.")
         }
@@ -131,7 +125,7 @@ class DigController : TextWebSocketHandler() {
         val validResult : SpacialSearchResult = sendAndReceive(SpacialSearchResult::class, action, this::objectMap)
 
         if (validResult.result.isFailure()) {
-            if (validResult.message.isNotEmpty()) {
+            if (validResult.result.result.contains("QueryExpired")) {
                 throw DigPreviousQueryFailedException("Could not find previously found element, TODO more error message.")
             } else {
                 throw DigSpacialException(action, validResult)

@@ -111,7 +111,7 @@ describe("PortBindings", function () {
 
             sinon.assert.calledWith(pageQuerierMock.findTextSearch, "pow");
             sinon.assert.calledWith(elmMock.ports.click_searchResult.send, {
-                result: "Failure",
+                result: "Failure_QueryExpired",
                 message: "Text element not visible yet"
             });
         });
@@ -121,7 +121,8 @@ describe("PortBindings", function () {
         it("happy path", function () {
             var mockResult = {
                 found: {
-                    foo: "bar"
+                    foo: "bar",
+                    id: "foo-id"
                 },
                 digId: 11,
                 closestMatches: []
@@ -139,12 +140,14 @@ describe("PortBindings", function () {
             sinon.assert.calledWith(elmMock.ports.findText_searchResult.send, {
                 result: "Success",
                 digId: 11,
+                htmlId: "foo-id",
                 closestMatches: []
             });
         });
 
         it("fails to find text on page", function () {
             var mockResult = {
+                result: "NoMatch",
                 found: null,
                 digId: null,
                 closestMatches: ["Batman", "pretzel"]
@@ -158,8 +161,9 @@ describe("PortBindings", function () {
 
             sinon.assert.calledWith(searchServiceMock.textSearch, "batman", "batman");
             sinon.assert.calledWith(elmMock.ports.findText_searchResult.send, {
-                result: "Failure",
+                result: "Failure_NoMatch",
                 digId: null,
+                htmlId: null,
                 closestMatches: mockResult.closestMatches
             });
         });
@@ -169,15 +173,19 @@ describe("PortBindings", function () {
         it("happy path", function () {
             var mockNode = {
                 foo: "bar"
+
             };
 
             pageQuerierMock.getElementByDigId.returns(mockNode);
 
             var mockResult = {
+                result: "Success",
                 found: {
-                    fooest: "bars"
+                    fooest: "bars",
+                    id: "foo-id"
                 },
                 digId: 4,
+                htmlId: "foo-id",
                 closeResults: []
             };
 
@@ -206,8 +214,8 @@ describe("PortBindings", function () {
             sinon.assert.calledWith(searchServiceMock.spacialSearchFromAnchor, mockNode, spacialSearchData);
             sinon.assert.calledWith(elmMock.ports.spacialSearch_result.send, {
                 result: "Success",
-                message: "",
                 digId: 4,
+                htmlId: "foo-id",
                 closeResults: []
             });
         });
@@ -220,6 +228,7 @@ describe("PortBindings", function () {
             pageQuerierMock.getElementByDigId.returns(mockNode);
 
             var mockResult = {
+                result: "NoMatch",
                 found: null,
                 digId: null,
                 closeResults: [{
@@ -255,9 +264,9 @@ describe("PortBindings", function () {
             sinon.assert.calledWith(searchServiceMock.spacialSearchFromAnchor, mockNode, spacialSearchData);
 
             var expectedResult = {
-                result: "Failure",
-                message: "",
+                result: "Failure_NoMatch",
                 digId: null,
+                htmlId: null,
                 closeResults: [{
                     x: 100,
                     y: -30,
@@ -267,6 +276,64 @@ describe("PortBindings", function () {
             };
             sinon.assert.calledWith(elmMock.ports.spacialSearch_result.send, expectedResult);
         });
+
+        it("finds ambiguous match", function () {
+            var mockNode = {
+                foo: "bar"
+            };
+
+            pageQuerierMock.getElementByDigId.returns(mockNode);
+
+            var mockResult = {
+                result: "AmbiguousMatch",
+                found: null,
+                digId: null,
+                closeResults: [{
+                    x: 100,
+                    y: -30,
+                    tolerance: 20,
+                    htmlId: "really-good-id"
+                }]
+            };
+
+            searchServiceMock.spacialSearchFromAnchor.returns(mockResult);
+
+            var spacialSearchData = {
+                direction: "East",
+                elementType: "Checkbox",
+                digId: 3,
+                prevQueries: [{
+                    queryType: "TextQuery",
+                    textQuery: {
+                        text: "foo bar"
+                    },
+                    spacialQuery: null
+                }]
+            };
+
+
+            // Calls function as if we were elm
+            var call = elmMock.ports.spacialSearch.subscribe.getCall(0);
+            call.args[0](spacialSearchData);
+
+
+            sinon.assert.calledWith(pageQuerierMock.getElementByDigId, 3);
+            sinon.assert.calledWith(searchServiceMock.spacialSearchFromAnchor, mockNode, spacialSearchData);
+
+            var expectedResult = {
+                result: "Failure_AmbiguousMatch",
+                digId: null,
+                htmlId: null,
+                closeResults: [{
+                    x: 100,
+                    y: -30,
+                    tolerance: 20,
+                    htmlId: "really-good-id"
+                }]
+            };
+            sinon.assert.calledWith(elmMock.ports.spacialSearch_result.send, expectedResult);
+        });
+
 
         it("fails to find original element by id (redo text search)", function () {
             pageQuerierMock.getElementByDigId.returns(null);
@@ -281,7 +348,8 @@ describe("PortBindings", function () {
 
             var mockResult = {
                 found: {
-                    foos: "ball"
+                    foos: "ball",
+                    id: "foo-id"
                 },
                 digId: 6,
                 closeResults: []
@@ -313,8 +381,8 @@ describe("PortBindings", function () {
             sinon.assert.calledWith(searchServiceMock.spacialSearchFromAnchor, mockTextSearchResult.found, spacialSearchData);
             sinon.assert.calledWith(elmMock.ports.spacialSearch_result.send, {
                 result: "Success",
-                message: "",
                 digId: 6,
+                htmlId: "foo-id",
                 closeResults: []
             });
         });

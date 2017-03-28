@@ -254,4 +254,67 @@ describe("Geometry", function () {
             });
         });
     });
+
+    describe("#euclideanDistance", function () {
+        it("x component only", function () {
+            geometry = new Geometry();
+
+            var point1 = {
+                x: 0,
+                y: 0
+            };
+
+            var point2 = {
+                x: 20,
+                y: 0
+            };
+
+
+            var actualResult = geometry.euclideanDistance(point1, point2);
+
+
+            expect(actualResult).toEqual(20);
+        });
+
+        it("y component only", function () {
+            geometry = new Geometry();
+
+            var point1 = {
+                x: 0,
+                y: 0
+            };
+
+            var point2 = {
+                x: 0,
+                y: 10
+            };
+
+
+            var actualResult = geometry.euclideanDistance(point1, point2);
+
+
+            expect(actualResult).toEqual(10);
+        });
+
+
+        it("x and y components", function () {
+            geometry = new Geometry();
+
+            var point1 = {
+                x: 0,
+                y: 0
+            };
+
+            var point2 = {
+                x: 5,
+                y: 10
+            };
+
+
+            var actualResult = geometry.euclideanDistance(point1, point2);
+
+
+            expect(actualResult).toBeCloseTo(11.180339);
+        });
+    });
 });

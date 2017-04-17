@@ -1,6 +1,6 @@
 module Ports.Model exposing (..)
 
-import Actions exposing (SpacialSearchAction)
+import Actions.Decoder exposing (SpacialSearchAction)
 import Queries exposing (ExecutedQuery, SpacialQuery, TextQuery)
 
 

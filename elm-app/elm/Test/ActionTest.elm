@@ -1,8 +1,9 @@
 module Test.ActionTest exposing (..)
 
-import Actions exposing (ActionType(..), actionTypeDecoder)
+import Actions.Decoder exposing (Action(..), actionDecoder)
 import Expect
 import Json.Decode exposing (decodeString)
+import Queries exposing (Direction(West), ElementType(Checkbox), SearchPriority(Alignment))
 import Test exposing (Test, describe, test)
 import Test.ResultExtras exposing (resultFailedContainingText)
 
@@ -10,7 +11,7 @@ import Test.ResultExtras exposing (resultFailedContainingText)
 suite : Test
 suite =
     describe "Actions"
-        [ describe "ActionType decoder"
+        [ describe "Action decoder happy path"
             [ test "goto" <|
                 \() ->
                     let
@@ -18,12 +19,13 @@ suite =
                             """{
                                    "action": {
                                        "actionType": "GoTo"
-                                   }
+                                   },
+                                   "uri": "http://example.com/"
                                }"""
                     in
                         Expect.equal
-                            (Ok GoTo)
-                            (decodeString actionTypeDecoder json)
+                            (Ok (GoTo { uri = "http://example.com/" }))
+                            (decodeString actionDecoder json)
             , test "findtext" <|
                 \() ->
                     let
@@ -31,12 +33,13 @@ suite =
                             """{
                                    "action": {
                                        "actionType": "FindText"
-                                   }
+                                   },
+                                   "text": "fooText"
                                }"""
                     in
                         Expect.equal
-                            (Ok FindText)
-                            (decodeString actionTypeDecoder json)
+                            (Ok (FindText { text = "fooText" }))
+                            (decodeString actionDecoder json)
             , test "click" <|
                 \() ->
                     let
@@ -44,25 +47,42 @@ suite =
                             """{
                                     "action": {
                                         "actionType": "Click"
-                                    }
+                                    },
+                                    "digId": 32,
+                                    "prevQueries": []
                                 }"""
                     in
                         Expect.equal
-                            (Ok Click)
-                            (decodeString actionTypeDecoder json)
+                            (Ok (Click { digId = 32, prevQueries = [] }))
+                            (decodeString actionDecoder json)
             , test "spacialsearch" <|
                 \() ->
                     let
                         json =
                             """{
-                                  "action": {
-                                      "actionType": "SpacialSearch"
-                                  }
+                                    "action": {
+                                        "actionType": "SpacialSearch"
+                                    },
+                                    "digId": 13,
+                                    "direction": "WEST",
+                                    "elementType": "CHECKBOX",
+                                    "toleranceInPixels": 10,
+                                    "priority": "ALIGNMENT",
+                                    "prevQueries": []
                               }"""
+
+                        expectedRecord =
+                            { digId = 13
+                            , direction = West
+                            , elementType = Checkbox
+                            , tolerance = 10
+                            , priority = Alignment
+                            , prevQueries = []
+                            }
                     in
                         Expect.equal
-                            (Ok SpacialSearch)
-                            (decodeString actionTypeDecoder json)
+                            (Ok (SpacialSearch expectedRecord))
+                            (decodeString actionDecoder json)
             , test "unknown action type" <|
                 \() ->
                     let
@@ -75,6 +95,6 @@ suite =
                     in
                         resultFailedContainingText
                             "Trying to decode action"
-                            (decodeString actionTypeDecoder json)
+                            (decodeString actionDecoder json)
             ]
         ]

@@ -1,6 +1,5 @@
 port module Ports.Click exposing (..)
 
-import Actions exposing (ClickAction)
 import Ports.Model exposing (ClickPortData)
 import Response exposing (TestResult)
 

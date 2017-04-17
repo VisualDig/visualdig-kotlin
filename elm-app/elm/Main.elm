@@ -1,10 +1,7 @@
--- Read more about this program in the official Elm guide:
--- https://guide.elm-lang.org/architecture/effects/web_sockets.html
-
-
 module Main exposing (..)
 
-import Actions exposing (ActionType(Click, FindText, GoTo, SpacialSearch), ClickAction, FindTextAction, GoToAction, SpacialSearchAction, actionTypeDecoder, clickActionDecoder, findTextActionDecoder, goToActionDecoder, spacialSearchActionDecoder)
+import Actions.FindText exposing (..)
+import Actions.Decoder exposing (Action(Click, FindText, GoTo, SpacialSearch), ClickAction, GoToAction, SpacialSearchAction, actionDecoder, clickActionDecoder, findTextActionDecoder, goToActionDecoder, spacialSearchActionDecoder)
 import Ports.Click exposing (click_searchResult, click_searchText)
 import Ports.FindText exposing (findText_search, findText_searchResult)
 import Html exposing (..)
@@ -44,10 +41,7 @@ timeoutInSeconds =
 
 type alias Model =
     { websiteUrl : String
-    , currentAction : Maybe ActionType
-    , findTextAction : Maybe FindTextAction
-    , clickAction : Maybe ClickAction
-    , spacialSearchAction : Maybe SpacialSearchAction
+    , currentAction : Maybe Action
     , timeoutTime : Maybe Time
     , timeout : Bool
     }
@@ -58,9 +52,6 @@ clearCurrentAction existingModel =
     { existingModel
         | websiteUrl = existingModel.websiteUrl
         , currentAction = Nothing
-        , findTextAction = Nothing
-        , clickAction = Nothing
-        , spacialSearchAction = Nothing
         , timeoutTime = Nothing
         , timeout = False
     }
@@ -70,9 +61,6 @@ init : ( Model, Cmd Msg )
 init =
     ( { websiteUrl = ""
       , currentAction = Nothing
-      , findTextAction = Nothing
-      , clickAction = Nothing
-      , spacialSearchAction = Nothing
       , timeoutTime = Nothing
       , timeout = False
       }
@@ -97,58 +85,35 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         NewMessage str ->
-            case (Json.decodeString actionTypeDecoder str) of
-                Ok GoTo ->
-                    case (Json.decodeString goToActionDecoder str) of
-                        Ok action ->
-                            ( { model
-                                | websiteUrl = action.uri
-                                , currentAction = Just GoTo
-                              }
-                            , Cmd.none
-                            )
+            case (Json.decodeString actionDecoder str) of
+                Ok (GoTo action) ->
+                    ( { model
+                        | websiteUrl = action.uri
+                        , currentAction = Just (GoTo action)
+                      }
+                    , Cmd.none
+                    )
 
-                        Err msg ->
-                            Debug.crash ("Error decoding Json GoToAction object: " ++ msg)
+                Ok (FindText action) ->
+                    ( { model
+                        | currentAction = Just (FindText action)
+                      }
+                    , Cmd.none
+                    )
 
-                Ok FindText ->
-                    case (Json.decodeString findTextActionDecoder str) of
-                        Ok action ->
-                            ( { model
-                                | currentAction = Just FindText
-                                , findTextAction = Just action
-                              }
-                            , Cmd.none
-                            )
+                Ok (Click action) ->
+                    ( { model
+                        | currentAction = Just (Click action)
+                      }
+                    , Cmd.none
+                    )
 
-                        Err msg ->
-                            Debug.crash ("Error decoding Json FindTextAction object: " ++ msg)
-
-                Ok Click ->
-                    case (Json.decodeString clickActionDecoder str) of
-                        Ok action ->
-                            ( { model
-                                | currentAction = Just Click
-                                , clickAction = Just action
-                              }
-                            , Cmd.none
-                            )
-
-                        Err msg ->
-                            Debug.crash ("Error decoding Json ClickAction object: " ++ msg)
-
-                Ok SpacialSearch ->
-                    case (Json.decodeString spacialSearchActionDecoder str) of
-                        Ok action ->
-                            ( { model
-                                | currentAction = Just SpacialSearch
-                                , spacialSearchAction = Just action
-                              }
-                            , Cmd.none
-                            )
-
-                        Err msg ->
-                            Debug.crash ("Error decoding Json SpacialSearchAction object: " ++ msg)
+                Ok (SpacialSearch action) ->
+                    ( { model
+                        | currentAction = Just (SpacialSearch action)
+                      }
+                    , Cmd.none
+                    )
 
                 Err msg ->
                     Debug.crash ("Error decoding Json websocket message: " ++ msg)
@@ -209,15 +174,10 @@ update msg model =
 
         UpdateTick time ->
             case model.currentAction of
-                Just FindText ->
+                Just (FindText action) ->
                     let
                         cmd =
-                            case model.findTextAction of
-                                Just action ->
-                                    findText_search action.text
-
-                                Nothing ->
-                                    Cmd.none
+                            findText_search action.text
 
                         newModel =
                             case model.timeoutTime of
@@ -232,15 +192,10 @@ update msg model =
                     in
                         ( newModel, cmd )
 
-                Just Click ->
+                Just (Click action) ->
                     let
                         cmd =
-                            case model.clickAction of
-                                Just action ->
-                                    click_searchText (clickPortData action.digId action.prevQueries)
-
-                                Nothing ->
-                                    Debug.crash "Unexpected: action state was empty while processing Click action"
+                            click_searchText (clickPortData action.digId action.prevQueries)
 
                         newModel =
                             case model.timeoutTime of
@@ -255,15 +210,10 @@ update msg model =
                     in
                         ( newModel, cmd )
 
-                Just SpacialSearch ->
+                Just (SpacialSearch action) ->
                     let
                         cmd =
-                            case model.spacialSearchAction of
-                                Just action ->
-                                    spacialSearch (spacialSearchPortData action)
-
-                                Nothing ->
-                                    Debug.crash "Unexpected: action state was empty while processing SpacialSearch action"
+                            spacialSearch (spacialSearchPortData action)
 
                         newModel =
                             case model.timeoutTime of
@@ -282,10 +232,12 @@ update msg model =
                     ( model, Cmd.none )
 
         WebsiteLoaded ->
-            if model.currentAction == Just GoTo then
-                ( clearCurrentAction model, WebSocket.send digServer (encodeJsonResult basicSuccessResult) )
-            else
-                ( model, Cmd.none )
+            case model.currentAction of
+                Just (GoTo action) ->
+                    ( clearCurrentAction model, WebSocket.send digServer (encodeJsonResult basicSuccessResult) )
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 

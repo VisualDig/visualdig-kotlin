@@ -1,32 +1,24 @@
-module Actions exposing (..)
+module Actions.Decoder exposing (..)
 
+import Actions.FindText exposing (FindTextAction)
 import Json.Decode exposing (Decoder, andThen, at, fail, field, int, list, map, maybe, string, succeed)
 import Json.Decode.Extra exposing ((|:))
 import Queries exposing (Direction, ElementType, ExecutedQuery, SearchPriority, SpacialQuery, TextQuery, directionDecoder, elementTypeDecoder, executedQueryDecoder, searchPriorityDecoder, spacialQueryDecoder, textQueryDecoder)
 
 
 type alias GoToAction =
-    { action : ActionType
-    , uri : String
-    }
-
-
-type alias FindTextAction =
-    { action : ActionType
-    , text : String
+    { uri : String
     }
 
 
 type alias ClickAction =
-    { action : ActionType
-    , digId : Int
+    { digId : Int
     , prevQueries : List ExecutedQuery
     }
 
 
 type alias SpacialSearchAction =
-    { action : ActionType
-    , direction : Direction
+    { direction : Direction
     , elementType : ElementType
     , tolerance : Int
     , priority : SearchPriority
@@ -35,17 +27,16 @@ type alias SpacialSearchAction =
     }
 
 
-type ActionType
-    = GoTo
-    | FindText
-    | Click
-    | SpacialSearch
+type Action
+    = GoTo GoToAction
+    | FindText FindTextAction
+    | Click ClickAction
+    | SpacialSearch SpacialSearchAction
 
 
 clickActionDecoder : Decoder ClickAction
 clickActionDecoder =
     succeed ClickAction
-        |: actionTypeDecoder
         |: (field "digId" int)
         |: (field "prevQueries" (list executedQueryDecoder))
 
@@ -53,7 +44,6 @@ clickActionDecoder =
 spacialSearchActionDecoder : Decoder SpacialSearchAction
 spacialSearchActionDecoder =
     succeed SpacialSearchAction
-        |: actionTypeDecoder
         |: (field "direction" directionDecoder)
         |: (field "elementType" elementTypeDecoder)
         |: (field "toleranceInPixels" int)
@@ -65,39 +55,38 @@ spacialSearchActionDecoder =
 findTextActionDecoder : Decoder FindTextAction
 findTextActionDecoder =
     succeed FindTextAction
-        |: actionTypeDecoder
         |: (field "text" string)
 
 
 goToActionDecoder : Decoder GoToAction
 goToActionDecoder =
     succeed GoToAction
-        |: actionTypeDecoder
         |: (field "uri" string)
 
 
-actionTypeDecoder : Decoder ActionType
-actionTypeDecoder =
+actionDecoder : Decoder Action
+actionDecoder =
     (at
         [ "action", "actionType" ]
-        (string |> andThen actionTypeHelper)
+        string
     )
+        |> andThen actionDecoderHelper
 
 
-actionTypeHelper : String -> Decoder ActionType
-actionTypeHelper action =
+actionDecoderHelper : String -> Decoder Action
+actionDecoderHelper action =
     case String.toLower action of
         "goto" ->
-            succeed GoTo
+            map GoTo goToActionDecoder
 
         "findtext" ->
-            succeed FindText
+            map FindText findTextActionDecoder
 
         "click" ->
-            succeed Click
+            map Click clickActionDecoder
 
         "spacialsearch" ->
-            succeed SpacialSearch
+            map SpacialSearch spacialSearchActionDecoder
 
         _ ->
             fail <|

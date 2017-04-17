@@ -1,6 +1,7 @@
 .gradle
 .idea
 gradle
+classes
 build
 **/.DS_Store
 **/elm-stuff
